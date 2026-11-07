@@ -1,0 +1,114 @@
+# Diamond Launcher
+
+A minimalist Minecraft launcher: pick a version, install, press Play. Built with Tauri 2, React, TypeScript (strict), Rust and Vite.
+
+Offline profile only: there is **no** Microsoft/Xbox authentication and no ownership verification. The launcher passes a locally stored username and a deterministic offline UUID.
+
+## Run
+
+```
+npm install
+npm run tauri dev                      # development
+npm run tauri build -- --no-bundle     # release exe in src-tauri/target/release
+npm run typecheck                      # TypeScript strict check
+npm run test:rust                      # Rust unit tests
+```
+
+Requires Node 18+, Rust (stable, MSVC on Windows) and WebView2.
+
+End-to-end check (downloads from Mojang, installs, starts the real game for 20 s):
+
+```
+$env:E2E_VERSION="1.21.4"; cargo test --manifest-path src-tauri/Cargo.toml --lib e2e -- --ignored --nocapture
+```
+
+## Architecture
+
+Frontend (`src/`) only renders state and calls the backend; all system work is in Rust.
+
+| Path | Responsibility |
+| --- | --- |
+| `src/hooks/useLauncher.ts` | Single state hook: settings, versions, install progress, game status, errors |
+| `src/api/` | Typed `invoke`/event wrappers and shared types (mirror Rust serde models, camelCase) |
+| `src/components/` | Presentational components (PlayButton, VersionPicker, SettingsPanel, ...) |
+| `src/styles/` | Design tokens, base, component CSS |
+| `src-tauri/src/commands.rs` | Tauri commands (thin) |
+| `manifest.rs` | Official version manifest (cached for offline) and per-version JSON |
+| `meta.rs`, `rules.rs` | Serde models of version JSON; OS/arch/feature rule evaluation |
+| `plan.rs` | Metadata -> files: libraries, classpath, natives, asset objects, log config |
+| `download.rs` | Concurrent downloads, SHA-1/size verification, retries, byte-accurate progress |
+| `java.rs` | Java probing, system discovery, Mojang-managed runtime download |
+| `install.rs` | Install/repair pipeline, emits `install-progress` events |
+| `launch.rs` | Argument construction from metadata, process supervision, emits `game-status` |
+| `system.rs`, `settings.rs`, `paths.rs` | RAM detection/recommendation, persisted settings, directory layout |
+
+Events: `install-progress` (phase: metadata, java, verify, download, finalize, done) and `game-status` (starting, running, exited, crashed + log tail).
+
+Data lives in `%APPDATA%\Diamond` (`settings.json`, manifest cache) and, by default, `%APPDATA%\Diamond\minecraft` (standard `versions/ libraries/ assets/ runtime/` layout). Both game dir and Java are overridable in Settings.
+
+Design rules: no version-specific launch arguments (everything comes from version JSON rules; legacy `minecraftArguments` gets only the universal `-Djava.library.path`/`-cp`); progress is only shown from real byte counts, other phases are indeterminate.
+
+Error codes returned to the UI (`AppError.code`): `network`, `checksum`, `not_installed`, `java_missing`, `java_too_old`, `invalid_*`, `busy`, `launch_failed`, ... The UI auto-repairs on `not_installed`/`java_missing` when pressing Play.
+
+## Diamond identity and mods
+
+- Fabric + performance mods (Sodium, Lithium, Zoomify, …) are installed per version and can be toggled in Settings → Mods (`src-tauri/src/mods.rs`).
+- The game reports itself as **Diamond Launcher**: `--versionType`/`launcher_name` are set, and `agent/` holds a tiny Java agent that replaces the `"vanilla"` client brand, so servers and F3 see "Diamond Launcher" (with Fabric: "Diamond Launcher,fabric"). Rebuild the embedded jar with `agent/build.ps1` (output: `src-tauri/resources/diamond-agent.jar`).
+- Intro splash and staggered entrance animation live in `App.tsx` / `components.css` (disabled under `prefers-reduced-motion`).
+
+## School networks (MEB / filtered networks)
+
+The installer is per-user (`installMode: currentUser`), so no admin rights are needed.
+
+Hosts the launcher contacts (all HTTPS):
+
+| Host | Used for | Required? |
+| --- | --- | --- |
+| `piston-meta.mojang.com`, `launchermeta.mojang.com` | Version manifest, version JSON, Java runtime index | Yes |
+| `piston-data.mojang.com` | Java runtime files | Yes (for managed Java) |
+| `libraries.minecraft.net`, `resources.download.minecraft.net` | Libraries, client jar, assets | Yes |
+| `meta.fabricmc.net`, `maven.fabricmc.net` | Fabric loader profile and libraries | Only for mods |
+| `api.modrinth.com` and the file CDN it returns (`cdn.modrinth.com`) | Mod metadata and jars | Only for mods |
+
+Mods are optional. If Fabric or Modrinth is blocked, the install does **not** fail: the version runs as vanilla and the reason is shown in Settings → Mods. Press "Verify selected version" (Settings → Advanced) to retry once the network allows it.
+
+Check reachability from PowerShell:
+
+```
+"piston-meta.mojang.com","launchermeta.mojang.com","piston-data.mojang.com","libraries.minecraft.net","resources.download.minecraft.net","meta.fabricmc.net","maven.fabricmc.net","api.modrinth.com" | % { "{0}: {1}" -f $_, (Test-NetConnection $_ -Port 443 -WarningAction SilentlyContinue).TcpTestSucceeded }
+```
+
+Code signing: the installer is unsigned, so SmartScreen or AppLocker policies may warn or block it. A signing certificate is required to remove that.
+
+## Releasing (GitHub)
+
+`.github/workflows/release.yml` builds the NSIS installer on Windows and publishes it as a GitHub Release.
+
+1. Bump the version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml` (all three must match).
+2. Commit, then tag and push:
+
+```
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The workflow stops if the tag does not equal `v<tauri.conf.json version>`. On success, `DiamondLauncher-<version>-x64-setup.exe` is attached to the release. Manual runs (Actions → Release → Run workflow) only upload the installer as a workflow artifact.
+
+## Status
+
+Done and verified (18 unit tests; real install + launch of 1.8.9 and 1.21.4; release build runs and shows the live version list):
+
+1. Shell and project structure
+2. Visual interface (main screen, version picker, settings drawer, progress, errors)
+3. Version manifest, release/snapshot selection, last version restored
+4. Install engine: client jar, libraries, natives, asset index + objects (incl. legacy virtual assets), log4j config, Mojang Java runtime, SHA-1 verification and repair
+5. Java detection (custom > managed runtime > system), automatic RAM (40% of RAM, 1-8 GB, leaves headroom)
+6. Launching, process tracking, closure/crash detection with log tail, Stop
+7. Settings: username, RAM, Java path, game dir, JVM args; persisted
+
+Not implemented / known limits:
+
+- No cancel button for downloads.
+- Versions using `inheritsFrom` (Forge/Fabric profiles) are rejected with a clear message; only official versions are listed. Old alpha/beta are not listed.
+- Frontend has no automated tests (type-checked only); the UI was only smoke-tested visually, not every interaction.
+- Tested on Windows x64 only; macOS/Linux code paths are written but untested.

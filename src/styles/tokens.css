@@ -1,0 +1,25 @@
+:root {
+  --bg: #0b0c0e;
+  --surface: #131518;
+  --surface-hover: #1a1c20;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --text: #ececee;
+  --text-muted: #8a8d95;
+  --text-faint: #5c5f66;
+  --accent: #6ee7f0;
+  --accent-ink: #04191c;
+  --danger: #ff8a8a;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --fast: 140ms;
+  --medium: 260ms;
+
+  --font: "Pixelify Sans", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Pixelify Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+}
