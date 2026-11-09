@@ -188,15 +188,20 @@ public final class DiamondHud implements ClientModInitializer {
                     lightmapSwapped = true;
                 }
             } else if (lightmapSwapped) {
-                lightmapField.set(renderer, originalLightmap);
-                lightmapSwapped = false;
-                if (originalLightmap != null) {
+                // Close our own FullbrightLightmap, NEVER the game's original lightmap.
+                // Closing the original lightmap makes its UBO unusable on the next render
+                // frame, causing "Buffer already closed" (IllegalStateException) in
+                // Lightmap.render -> a hard crash on the render thread.
+                Lightmap current = (Lightmap) lightmapField.get(renderer);
+                if (current instanceof FullbrightLightmap) {
                     try {
-                        originalLightmap.close();
+                        current.close();
                     } catch (Exception ignored) {
                     }
-                    originalLightmap = null;
                 }
+                lightmapField.set(renderer, originalLightmap);
+                lightmapSwapped = false;
+                originalLightmap = null;
             }
         } catch (IllegalAccessException ignored) {
         }

@@ -1,0 +1,15 @@
+# Changelog
+
+## [0.5.1] - 2026-11-09
+
+### Fixed
+- **Critical crash: Left Shift causes game crash.** The Fullbright lightmap swap closed Minecraft's original `Lightmap` when disabling fullbright, making its UBO unusable on the next render frame and throwing `IllegalStateException: Buffer already closed` in `Lightmap.render()` (render thread). The original lightmap is now never closed; only the launcher's own `FullbrightLightmap` is closed on disable. Normal sneak (Left Shift) functionality is preserved.
+
+## [0.5.0] - 2026-11-09
+
+### Added
+- Fullbright module: rendering-level lightmap brightness (~1000%), enable/disable toggle only, persists across restarts.
+- Armor HUD: smaller, cleaner, elegant durability percentages; identical styling in live HUD and layout editor preview.
+- Pause menu: Advancements button removed; remaining buttons repositioned.
+- GitHub auto-updater: release notes, real download progress, SHA-256 verification, silent install and restart.
+- Version aligned to 0.5.0 across all project files.
