@@ -1,5 +1,6 @@
 //! Launch command construction and game process supervision.
 use crate::error::{AppError, Result};
+use crate::hud;
 use crate::install;
 use crate::java;
 use crate::meta::{ArgValue, Argument, AssetIndex, VersionMeta};
@@ -14,6 +15,7 @@ use md5::{Digest, Md5};
 use regex::Regex;
 use serde::Serialize;
 use std::collections::{HashMap, VecDeque};
+use std::fs;
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
@@ -21,21 +23,6 @@ use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 use tokio::sync::oneshot;
 
-const LAUNCHER_NAME: &str = "Diamond Launcher";
-/// Shown as the version type in-game and sent to servers as the client brand.
-const BRAND: &str = "Diamond Launcher";
-const BRAND_AGENT_JAR: &[u8] = include_bytes!("../resources/diamond-agent.jar");
-
-/// Writes the embedded brand agent next to the game files so the JVM can load it.
-fn install_brand_agent(paths: &GamePaths) -> Result<PathBuf> {
-    let path = paths.root.join("diamond-agent.jar");
-    let current = std::fs::read(&path).ok();
-    if current.as_deref() != Some(BRAND_AGENT_JAR) {
-        std::fs::create_dir_all(&paths.root)?;
-        std::fs::write(&path, BRAND_AGENT_JAR)?;
-    }
-    Ok(path)
-}
 const LOG_TAIL_LINES: usize = 40;
 
 #[derive(Debug, Clone, Serialize)]
@@ -121,7 +108,7 @@ pub struct LaunchInputs<'a> {
     pub settings: &'a Settings,
     pub classpath: &'a [PathBuf],
     pub mods_dir: Option<&'a std::path::Path>,
-    pub brand_agent: Option<&'a std::path::Path>,
+    pub hud_jar: Option<&'a std::path::Path>,
     pub env: &'a Env,
     pub max_ram_mb: u32,
 }
@@ -156,9 +143,9 @@ pub fn build_args(i: &LaunchInputs) -> Vec<String> {
         ("clientid", "0".into()),
         ("user_type", "legacy".into()),
         ("user_properties", "{}".into()),
-        ("version_type", BRAND.into()),
+        ("version_type", "Diamond Launcher".into()),
         ("natives_directory", path_str(&i.paths.natives(&meta.id))),
-        ("launcher_name", LAUNCHER_NAME.into()),
+        ("launcher_name", "Diamond Launcher".into()),
         ("launcher_version", env!("CARGO_PKG_VERSION").into()),
         ("classpath", classpath.join(sep)),
         ("classpath_separator", sep.into()),
@@ -176,12 +163,19 @@ pub fn build_args(i: &LaunchInputs) -> Vec<String> {
 
     let mut args = vec![format!("-Xmx{}M", i.max_ram_mb), "-Xms256M".to_string()];
     args.extend(split_args(&i.settings.jvm_args));
-    if let Some(agent) = i.brand_agent {
-        args.push(format!("-javaagent:{}={}", path_str(agent), BRAND));
-    }
+
+    // Add Fabric mods directory and HUD mod to the classpath
+    let mut add_mods: Vec<String> = Vec::new();
     if let Some(dir) = i.mods_dir {
-        args.push(format!("-Dfabric.addMods={}", path_str(dir)));
+        add_mods.push(path_str(dir));
     }
+    if let Some(jar) = i.hud_jar {
+        add_mods.push(path_str(jar));
+    }
+    if !add_mods.is_empty() {
+        args.push(format!("-Dfabric.addMods={}", add_mods.join(sep)));
+    }
+
     if let Some(client) = meta.logging.as_ref().and_then(|l| l.client.as_ref()) {
         if let Some(id) = client.file.id.as_deref() {
             let path = path_str(&i.paths.log_config(id));
@@ -245,15 +239,61 @@ pub async fn launch(app: &AppHandle, state: &AppState, id: &str) -> Result<()> {
         .unwrap_or_else(|| system::recommended_ram_mb(total, available, platform::arch()))
         .min(total.min(u64::from(u32::MAX)) as u32);
 
-    let agent = install_brand_agent(&paths)?;
+    // Maximum performance JVM arguments (G1GC tuned for Minecraft)
+    let performance_jvm_args = [
+        "-XX:+UseG1GC",
+        "-XX:+ParallelRefProcEnabled",
+        "-XX:MaxGCPauseMillis=200",
+        "-XX:+UnlockExperimentalVMOptions",
+        "-XX:+DisableExplicitGC",
+        "-XX:+AlwaysPreTouch",
+        "-XX:G1NewSizePercent=30",
+        "-XX:G1MaxNewSizePercent=40",
+        "-XX:G1HeapRegionSize=8M",
+        "-XX:G1ReservePercent=20",
+        "-XX:G1HeapWastePercent=5",
+        "-XX:G1MixedGCCountTarget=4",
+        "-XX:InitiatingHeapOccupancyPercent=15",
+        "-XX:G1MixedGCLiveThresholdPercent=90",
+        "-XX:G1RSetUpdatingPauseTimePercent=5",
+        "-XX:SurvivorRatio=32",
+        "-XX:+PerfDisableSharedMem",
+        "-XX:MaxTenuringThreshold=1",
+        "-Dfml.readTimeout=180",
+        "-Dsun.rmi.dgc.server.gcInterval=2147483646",
+        "-Dsun.rmi.dgc.client.gcInterval=2147483646",
+    ];
+
+    // Merge user JVM args with performance args (avoid duplicates)
+    let mut user_jvm_args = split_args(&settings.jvm_args);
+    for arg in performance_jvm_args {
+        let key = &arg[..arg.find('=').unwrap_or(arg.len())];
+        if !user_jvm_args.iter().any(|a| a.starts_with(key)) {
+            user_jvm_args.push(arg.to_string());
+        }
+    }
+    let mut settings_with_perf = settings.clone();
+    settings_with_perf.jvm_args = user_jvm_args.join(" ");
+
+    // HUD mod (optional in-game overlay)
+    let hud_jar = if hud::active(&settings, id) {
+        hud::write_config(&paths, &settings.hud)?;
+        Some(hud::install(&paths)?)
+    } else {
+        None
+    };
+
+    // Deploy Diamond Launcher resource pack (custom title screen background)
+    deploy_resource_pack(&paths)?;
+
     let args = build_args(&LaunchInputs {
         meta: &meta,
         index: &index,
         paths: &paths,
-        settings: &settings,
+        settings: &settings_with_perf,
         classpath: &libs.classpath,
         mods_dir: loaded.mods_dir.as_deref(),
-        brand_agent: Some(&agent),
+        hud_jar: hud_jar.as_deref(),
         env: &env,
         max_ram_mb,
     });
@@ -313,6 +353,11 @@ pub async fn launch(app: &AppHandle, state: &AppState, id: &str) -> Result<()> {
         for r in readers {
             let _ = r.await;
         }
+        // Sync any in-game HUD changes back to launcher settings
+        let mut final_settings = Settings::load();
+        if crate::hud::import_ingame(&mut final_settings) {
+            let _ = final_settings.save();
+        }
         let log_tail: Vec<String> = tail.lock().map(|t| t.iter().cloned().collect()).unwrap_or_default();
 
         let mut final_status = match exit {
@@ -355,6 +400,57 @@ pub fn stop(state: &AppState) -> Result<()> {
     Ok(())
 }
 
+fn deploy_resource_pack(paths: &GamePaths) -> Result<()> {
+    // Resource pack zip embedded in the binary
+    const RESOURCE_PACK_ZIP: &[u8] = include_bytes!("../resources/diamond-resourcepack.zip");
+    
+    let resourcepacks_dir = paths.root.join("resourcepacks");
+    fs::create_dir_all(&resourcepacks_dir)?;
+    
+    let pack_path = resourcepacks_dir.join("diamond-resourcepack.zip");
+    fs::write(&pack_path, RESOURCE_PACK_ZIP)?;
+    
+    // Enable in options.txt
+    let options_file = paths.root.join("options.txt");
+    let mut options_content = if options_file.exists() {
+        fs::read_to_string(&options_file)?
+    } else {
+        String::new()
+    };
+    
+    const PACK_ENTRY: &str = "diamond-resourcepack.zip";
+    
+    // Check if already enabled
+    if !options_content.lines().any(|line| line.starts_with("resourcePacks:")) {
+        // Add resourcePacks line
+        if !options_content.is_empty() && !options_content.ends_with('\n') {
+            options_content.push('\n');
+        }
+        options_content.push_str(&format!("resourcePacks:[\"{}\"]\n", PACK_ENTRY));
+        options_content.push_str("incompatibleResourcePacks:[]\n");
+    } else {
+        // Update existing resourcePacks line
+        let mut new_lines = Vec::new();
+        for line in options_content.lines() {
+            if line.starts_with("resourcePacks:") {
+                if !line.contains(PACK_ENTRY) {
+                    // Insert our pack at the beginning
+                    let modified = line.replace("resourcePacks:[", &format!("resourcePacks:[\"{}\",", PACK_ENTRY));
+                    new_lines.push(modified);
+                } else {
+                    new_lines.push(line.to_string());
+                }
+            } else {
+                new_lines.push(line.to_string());
+            }
+        }
+        options_content = new_lines.join("\n") + "\n";
+    }
+    
+    fs::write(&options_file, options_content)?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -382,7 +478,6 @@ mod tests {
         let java = java::resolve(settings.java_path.as_deref(), &meta, &paths).unwrap();
         println!("java: {} (major {})", java.path, java.major);
         let libs = plan::resolve_libraries(&meta, &env, &paths);
-        let agent = install_brand_agent(&paths).unwrap();
         let args = build_args(&LaunchInputs {
             meta: &meta,
             index: &index,
@@ -390,7 +485,7 @@ mod tests {
             settings: &settings,
             classpath: &libs.classpath,
             mods_dir: loaded.mods_dir.as_deref(),
-            brand_agent: Some(&agent),
+            hud_jar: None,
             env: &env,
             max_ram_mb: 2048,
         });
@@ -437,7 +532,7 @@ mod tests {
             settings: &settings,
             classpath: &[PathBuf::from("/game/libraries/a.jar")],
             mods_dir: None,
-            brand_agent: None,
+            hud_jar: None,
             env: &env,
             max_ram_mb: 2048,
         })

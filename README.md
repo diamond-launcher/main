@@ -48,13 +48,22 @@ Data lives in `%APPDATA%\Diamond` (`settings.json`, manifest cache) and, by defa
 
 Design rules: no version-specific launch arguments (everything comes from version JSON rules; legacy `minecraftArguments` gets only the universal `-Djava.library.path`/`-cp`); progress is only shown from real byte counts, other phases are indeterminate.
 
-Error codes returned to the UI (`AppError.code`): `network`, `checksum`, `not_installed`, `java_missing`, `java_too_old`, `invalid_*`, `busy`, `launch_failed`, ... The UI auto-repairs on `not_installed`/`java_missing` when pressing Play.
+Error codes returned to the UI (`AppError.code`): `network`, `checksum`, `not_installed`, `java_missing`, `java_too_old`, `mods_outdated`, `invalid_*`, `busy`, `launch_failed`, ... The UI auto-repairs on `not_installed`/`java_missing`/`mods_outdated` when pressing Play.
 
 ## Diamond identity and mods
 
 - Fabric + performance mods (Sodium, Lithium, Zoomify, …) are installed per version and can be toggled in Settings → Mods (`src-tauri/src/mods.rs`).
-- The game reports itself as **Diamond Launcher**: `--versionType`/`launcher_name` are set, and `agent/` holds a tiny Java agent that replaces the `"vanilla"` client brand, so servers and F3 see "Diamond Launcher" (with Fabric: "Diamond Launcher,fabric"). Rebuild the embedded jar with `agent/build.ps1` (output: `src-tauri/resources/diamond-agent.jar`).
+- The game reports itself as **Diamond Launcher**: `--versionType` and `launcher_name` are set in the generated arguments, so the version list and logs show "Diamond Launcher".
 - Intro splash and staggered entrance animation live in `App.tsx` / `components.css` (disabled under `prefers-reduced-motion`).
+
+### Client HUD
+
+The launcher ships its own Fabric client mod (`hud/`, mod id `diamondhud`) that draws an in-game overlay: FPS, CPS, keystrokes (WASD, mouse buttons, Shift, Space) and block coordinates. It is available for Minecraft **26.2+**; older versions run without it.
+
+- Everything is configurable in Settings → HUD: per-module switches, drag-and-drop positions on a 16:9 preview, global scale, background opacity, accent and text colours.
+- Settings are stored in `settings.json` and written to `diamond-hud.properties` in the game directory before each launch. The mod re-reads that file once per second, so changes apply without restarting the game.
+- The compiled jar lives at `src-tauri/resources/diamond-hud.jar` and is embedded into the launcher. Rebuild it with `hud/build.ps1` (needs JDK 25+ and an installed 26.2/26.3 version with Fabric).
+- When the HUD is enabled the launcher also ensures Fabric API is present, even if performance mods are turned off.
 
 ## School networks (MEB / filtered networks)
 
@@ -82,21 +91,17 @@ Code signing: the installer is unsigned, so SmartScreen or AppLocker policies ma
 
 ## Releasing (GitHub)
 
-`.github/workflows/release.yml` builds the NSIS installer on Windows and publishes it as a GitHub Release.
+The public repository only carries the installer, not the source code. Each release is a GitHub Release with a single asset named `DiamondLauncher-<version>-x64-setup.exe`. The launcher's update check reads `releases/latest` and looks for an asset ending in `setup.exe`.
 
 1. Bump the version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml` (all three must match).
-2. Commit, then tag and push:
+2. Build the installer on Windows: `npx tauri build --bundles nsis`. The output is in `src-tauri/target/release/bundle/nsis/`.
+3. Create a GitHub Release with tag `v<version>` and attach the installer, renamed to `DiamondLauncher-<version>-x64-setup.exe`. Do not attach or push source files.
 
-```
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-The workflow stops if the tag does not equal `v<tauri.conf.json version>`. On success, `DiamondLauncher-<version>-x64-setup.exe` is attached to the release. Manual runs (Actions → Release → Run workflow) only upload the installer as a workflow artifact.
+The update flow: the launcher checks GitHub about 4 seconds after start and every 30 minutes. If the latest tag is newer, a banner offers "Update now". The installer is downloaded, verified against the asset's SHA-256 digest when GitHub provides one, and run silently. Updates are refused while a game or install is running. Installs made before this feature (0.1.0) must be upgraded once by hand.
 
 ## Status
 
-Done and verified (18 unit tests; real install + launch of 1.8.9 and 1.21.4; release build runs and shows the live version list):
+Done and verified (33 unit tests; real install + launch of 1.8.9 and 1.21.4; release build runs and shows the live version list):
 
 1. Shell and project structure
 2. Visual interface (main screen, version picker, settings drawer, progress, errors)
@@ -105,6 +110,8 @@ Done and verified (18 unit tests; real install + launch of 1.8.9 and 1.21.4; rel
 5. Java detection (custom > managed runtime > system), automatic RAM (40% of RAM, 1-8 GB, leaves headroom)
 6. Launching, process tracking, closure/crash detection with log tail, Stop
 7. Settings: username, RAM, Java path, game dir, JVM args; persisted
+8. Update check against GitHub Releases with one-click silent install (`src-tauri/src/updater.rs`); unit tested only, not run end-to-end
+9. Custom in-game HUD (FPS, CPS, keystrokes, coordinates) with a live layout editor (`hud/`, `src-tauri/src/hud.rs`); verified in-game on 26.2 and 26.3
 
 Not implemented / known limits:
 

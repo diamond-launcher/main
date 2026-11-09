@@ -1,6 +1,7 @@
 mod commands;
 mod download;
 mod error;
+mod hud;
 mod install;
 mod java;
 mod launch;
@@ -14,6 +15,7 @@ mod rules;
 mod settings;
 mod state;
 mod system;
+mod updater;
 
 pub fn run() {
     tauri::Builder::default()
@@ -31,6 +33,10 @@ pub fn run() {
             commands::is_game_running,
             commands::list_mod_catalog,
             commands::mods_status,
+            commands::clear_mod_state,
+            commands::get_app_info,
+            updater::check_update,
+            updater::install_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Diamond Launcher");

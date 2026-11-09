@@ -46,6 +46,14 @@ export const Close = (p: IconProps) => (
   </svg>
 );
 
+export const Info = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <circle cx="8" cy="8" r="6.5" />
+    <path d="M8 7.2v4.2" />
+    <circle cx="8" cy="4.9" r="0.7" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 export const Minimize = (p: IconProps) => (
   <svg {...base} {...p}>
     <path d="M4 8h8" />

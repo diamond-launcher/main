@@ -34,7 +34,9 @@ impl From<std::io::Error> for AppError {
 impl From<reqwest::Error> for AppError {
     fn from(e: reqwest::Error) -> Self {
         if e.is_connect() || e.is_timeout() {
-            Self::new("network", "Could not reach Mojang servers. Check your internet connection.")
+            Self::new("network", "Could not reach the server. Check your internet connection.")
+        } else if let Some(status) = e.status() {
+            Self::new("network", format!("Server returned HTTP {}. Please try again later.", status.as_u16()))
         } else {
             Self::new("network", format!("Network error: {e}"))
         }

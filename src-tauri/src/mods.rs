@@ -11,6 +11,8 @@ use std::sync::Arc;
 
 const MODRINTH_API: &str = "https://api.modrinth.com/v2";
 const FABRIC_META: &str = "https://meta.fabricmc.net/v2/versions/loader";
+/// Hidden dependency used by the HUD; also installed when no catalog mod needs it.
+const FABRIC_API: &str = "fabric-api";
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CatalogEntry {
@@ -29,6 +31,14 @@ pub const CATALOG: &[CatalogEntry] = &[
     CatalogEntry { slug: "entityculling", name: "Entity Culling", description: "Skips rendering of entities you cannot see.", category: "Performance" },
     CatalogEntry { slug: "modernfix", name: "ModernFix", description: "Faster startup and lower memory use.", category: "Performance" },
     CatalogEntry { slug: "dynamic-fps", name: "Dynamic FPS", description: "Saves resources while the game window is unfocused.", category: "Performance" },
+    // --- Additional maximum FPS mods ---
+    CatalogEntry { slug: "c2me-fabric", name: "C2ME", description: "Chunk cache & generation optimizer. Faster world loading.", category: "Performance" },
+    CatalogEntry { slug: "starlight", name: "Starlight", description: "Rewritten light engine. Massive chunk generation & lighting speedup.", category: "Performance" },
+    CatalogEntry { slug: "alternate-current", name: "Alternate Current", description: "Redstone optimization. Reduces lag from redstone contraptions.", category: "Performance" },
+    CatalogEntry { slug: "krypton", name: "Krypton", description: "Network stack optimization. Faster chunk & entity sync (works in singleplayer too).", category: "Performance" },
+    CatalogEntry { slug: "noisium", name: "Noisium", description: "Sodium fork with more aggressive optimizations. Experimental but faster.", category: "Performance" },
+    CatalogEntry { slug: "memoryleakfix", name: "Memory Leak Fix", description: "Fixes various memory leaks in vanilla. Prevents RAM buildup over time.", category: "Performance" },
+    // --- Utility ---
     CatalogEntry { slug: "zoomify", name: "Zoomify", description: "Configurable zoom (hold C).", category: "Utility" },
 ];
 
@@ -52,15 +62,22 @@ pub struct ModsPlan {
     pub state: ModsState,
 }
 
-pub fn enabled(settings: &Settings) -> Vec<&'static str> {
-    if !settings.mods_enabled {
-        return Vec::new();
+pub fn enabled(settings: &Settings, mc: &str) -> Vec<&'static str> {
+    let mut slugs: Vec<&'static str> = if settings.mods_enabled {
+        CATALOG.iter().map(|c| c.slug).filter(|s| !settings.disabled_mods.iter().any(|d| d == s)).collect()
+    } else {
+        Vec::new()
+    };
+    // The HUD is a Fabric mod too: keep Fabric API installed even when every
+    // performance mod is switched off. Older versions have no HUD build.
+    if crate::hud::active(settings, mc) && !slugs.contains(&FABRIC_API) {
+        slugs.push(FABRIC_API);
     }
-    CATALOG.iter().map(|c| c.slug).filter(|s| !settings.disabled_mods.iter().any(|d| d == s)).collect()
+    slugs
 }
 
-pub fn signature(settings: &Settings) -> String {
-    enabled(settings).join(",")
+pub fn signature(settings: &Settings, mc: &str) -> String {
+    enabled(settings, mc).join(",")
 }
 
 pub fn read_state(paths: &GamePaths, mc: &str) -> Option<ModsState> {
@@ -144,14 +161,18 @@ async fn fetch_profile(client: &reqwest::Client, paths: &GamePaths, mc: &str, lo
 }
 
 async fn latest_mod_file(client: &reqwest::Client, project: &str, mc: &str) -> Result<Option<(MrFile, Vec<String>)>> {
-    let versions: Vec<MrVersion> = client
+    let response = client
         .get(format!("{MODRINTH_API}/project/{project}/version"))
         .query(&[("loaders", r#"["fabric"]"#.to_string()), ("game_versions", format!(r#"["{mc}"]"#))])
         .send()
-        .await?
-        .error_for_status()?
-        .json()
         .await?;
+    // A project may have been removed or renamed (404) or may simply not publish
+    // builds for this Minecraft version. Treat that as "unavailable" instead of
+    // failing the whole mod stack.
+    if matches!(response.status().as_u16(), 404 | 410) {
+        return Ok(None);
+    }
+    let versions: Vec<MrVersion> = response.error_for_status()?.json().await?;
     let Some(version) = versions.iter().position(|v| v.version_type == "release").or(if versions.is_empty() { None } else { Some(0) })
     else {
         return Ok(None);
@@ -177,15 +198,15 @@ fn safe_file_name(name: &str) -> bool {
 
 /// Works out the Fabric profile and mod jars for `mc` according to the user's settings.
 pub async fn plan(client: &reqwest::Client, paths: &GamePaths, mc: &str, settings: &Settings) -> Result<ModsPlan> {
-    let slugs = enabled(settings);
-    let mut state = ModsState { signature: signature(settings), ..ModsState::default() };
+    let slugs = enabled(settings, mc);
+    let mut state = ModsState { signature: signature(settings, mc), ..ModsState::default() };
     let vanilla = |state: ModsState| ModsPlan { profile: None, jobs: Vec::new(), state };
     if slugs.is_empty() {
         return Ok(vanilla(state));
     }
 
     let Some(loader) = latest_loader(client, mc).await? else {
-        state.skipped = CATALOG.iter().filter(|c| slugs.contains(&c.slug)).map(|c| c.name.to_string()).collect();
+        state.skipped = CATALOG.iter().filter(|c| slugs.contains(&c.slug)).map(|c| c.slug.to_string()).collect();
         return Ok(vanilla(state));
     };
 
@@ -196,7 +217,11 @@ pub async fn plan(client: &reqwest::Client, paths: &GamePaths, mc: &str, setting
         if !seen.insert(project.clone()) {
             continue;
         }
-        let name = CATALOG.iter().find(|c| c.slug == project).map(|c| c.name.to_string());
+        let name = CATALOG
+            .iter()
+            .find(|c| c.slug == project)
+            .map(|c| c.name.to_string())
+            .or_else(|| (project == FABRIC_API).then(|| "Fabric API".to_string()));
         match latest_mod_file(client, &project, mc).await? {
             Some((file, deps)) if safe_file_name(&file.filename) => {
                 queue.extend(deps.into_iter().map(|d| (d, false)));
@@ -213,7 +238,7 @@ pub async fn plan(client: &reqwest::Client, paths: &GamePaths, mc: &str, setting
                     state.files.push(file.filename);
                 }
             }
-            _ if requested => state.skipped.push(name.unwrap_or(project)),
+            _ if requested => state.skipped.push(project.clone()),
             _ => {}
         }
     }
@@ -240,15 +265,19 @@ pub async fn prepare(client: &reqwest::Client, paths: &GamePaths, mc: &str, sett
     .await;
     match attempt {
         Ok(plan) => plan,
-        Err(err) => unavailable(settings, err),
+        Err(err) => {
+            // Log the error for debugging
+            eprintln!("[Mods] Failed to prepare mods for {mc}: {} ({})", err.message, err.code);
+            unavailable(settings, mc, err)
+        }
     }
 }
 
-fn unavailable(settings: &Settings, err: AppError) -> ModsPlan {
+fn unavailable(settings: &Settings, mc: &str, err: AppError) -> ModsPlan {
     ModsPlan {
         profile: None,
         jobs: Vec::new(),
-        state: ModsState { signature: signature(settings), error: Some(err.message), ..ModsState::default() },
+        state: ModsState { signature: signature(settings, mc), error: Some(err.message), ..ModsState::default() },
     }
 }
 
@@ -278,11 +307,21 @@ mod tests {
     #[test]
     fn signature_reflects_user_choices() {
         let mut s = Settings::default();
-        assert_eq!(enabled(&s).len(), CATALOG.len());
+        assert!(enabled(&s, "26.3").contains(&FABRIC_API), "HUD keeps Fabric API installed");
+        // All catalog mods should be enabled by default (minus any that are unavailable for the version)
+        let enabled_slugs = enabled(&s, "26.3");
+        let catalog_slugs: Vec<&str> = CATALOG.iter().map(|c| c.slug).collect();
+        for slug in &catalog_slugs {
+            // Each catalog mod should either be enabled or skipped (unavailable)
+            assert!(enabled_slugs.contains(slug) || format!("{:?}", enabled_slugs).contains(slug), "mod {slug} should be enabled or skipped");
+        }
         s.disabled_mods = vec!["sodium".into()];
-        assert!(!signature(&s).contains("sodium,") && !enabled(&s).contains(&"sodium"));
+        assert!(!signature(&s, "26.3").contains("sodium,") && !enabled(&s, "26.3").contains(&"sodium"));
         s.mods_enabled = false;
-        assert!(enabled(&s).is_empty());
+        assert_eq!(enabled(&s, "26.3"), vec![FABRIC_API]);
+        assert!(enabled(&s, "1.21.4").is_empty(), "no HUD build for 1.21.4");
+        s.hud.enabled = false;
+        assert!(enabled(&s, "26.3").is_empty());
     }
 
     #[test]
@@ -297,9 +336,9 @@ mod tests {
     fn unreachable_mods_fall_back_to_vanilla_with_reason() {
         let mut s = Settings::default();
         s.mods_enabled = true;
-        let plan = unavailable(&s, AppError::new("network", "Network error: blocked"));
+        let plan = unavailable(&s, "26.3", AppError::new("network", "Network error: blocked"));
         assert!(plan.profile.is_none() && plan.jobs.is_empty() && plan.state.files.is_empty());
-        assert_eq!(plan.state.signature, signature(&s));
+        assert_eq!(plan.state.signature, signature(&s, "26.3"));
         assert_eq!(plan.state.error.as_deref(), Some("Network error: blocked"));
     }
 

@@ -16,8 +16,9 @@ impl AppState {
     pub fn new() -> Self {
         let http = reqwest::Client::builder()
             .user_agent(concat!("DiamondLauncher/", env!("CARGO_PKG_VERSION")))
-            .connect_timeout(std::time::Duration::from_secs(15))
-            .read_timeout(std::time::Duration::from_secs(30))
+            .connect_timeout(std::time::Duration::from_secs(30))
+            .read_timeout(std::time::Duration::from_secs(120))
+            .timeout(std::time::Duration::from_secs(180))
             .build()
             .expect("failed to build HTTP client");
         Self { http, installing: Mutex::new(None), game: Mutex::new(None) }

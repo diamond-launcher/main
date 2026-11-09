@@ -1,17 +1,51 @@
 import { open } from "@tauri-apps/plugin-dialog";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { toAppError } from "../api/tauri";
-import type { ModCatalogEntry, ModsState, Settings, SystemInfo } from "../api/types";
+import type { HudModule, HudSettings, ModCatalogEntry, ModsState, Settings, SystemInfo } from "../api/types";
 import { formatRam } from "../lib/format";
 import { Close } from "./Icons";
 
-type Tab = "general" | "mods" | "performance" | "advanced";
+type Tab = "general" | "mods" | "performance" | "hud" | "advanced";
 const TABS: Array<[Tab, string]> = [
   ["general", "General"],
   ["mods", "Mods"],
   ["performance", "Performance"],
+  ["hud", "HUD"],
   ["advanced", "Advanced"],
 ];
+
+const HUD_MODULES = [
+  ["fps", "FPS"],
+  ["cps", "CPS"],
+  ["keystrokes", "Keys"],
+  ["coords", "Coords"],
+  ["day", "Day Counter"],
+  ["ip", "IP Info"],
+  ["armor", "Armor HUD"],
+] as const;
+type HudKey = (typeof HUD_MODULES)[number][0] | "fullbright";
+
+const HUD_DEFAULT_POS: Record<HudKey, { x: number; y: number }> = {
+  fps: { x: 0.012, y: 0.012 },
+  cps: { x: 0.012, y: 0.06 },
+  keystrokes: { x: 0.012, y: 0.112 },
+  coords: { x: 0.012, y: 0.355 },
+  day: { x: 0.012, y: 0.225 },
+  ip: { x: 0.012, y: 0.3 },
+  armor: { x: 0.85, y: 0.012 },
+  fullbright: { x: 0.85, y: 0.075 },
+};
+
+const HUD_DESCRIPTIONS: Record<HudKey, string> = {
+  fps: "Frames per second.",
+  cps: "Left and right clicks per second.",
+  keystrokes: "WASD, mouse buttons, shift and jump.",
+  coords: "Player block coordinates.",
+  day: "In-game day count.",
+  ip: "Connected server address.",
+  armor: "Equipped armor with durability.",
+  fullbright: "Rendering-level brightness; enable/disable only.",
+};
 
 function Switch({
   checked,
@@ -47,6 +81,7 @@ interface Props {
   onSave: (next: Settings) => Promise<void>;
   onVerify: () => void;
   onClose: () => void;
+  onClearModState: (id: string) => Promise<void>;
 }
 
 async function browse(directory: boolean): Promise<string | null> {
@@ -54,7 +89,7 @@ async function browse(directory: boolean): Promise<string | null> {
   return typeof picked === "string" ? picked : null;
 }
 
-export function SettingsPanel({ settings, system, catalog, modsState, busy, canVerify, onSave, onVerify, onClose }: Props) {
+export function SettingsPanel({ settings, system, catalog, modsState, busy, canVerify, onSave, onVerify, onClose, onClearModState }: Props) {
   const [tab, setTab] = useState<Tab>("general");
   const [draft, setDraft] = useState<Settings>(settings);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +109,55 @@ export function SettingsPanel({ settings, system, catalog, modsState, busy, canV
   const toggleMod = (slug: string, on: boolean) =>
     patch({
       disabledMods: on ? draft.disabledMods.filter((s) => s !== slug) : [...draft.disabledMods, slug],
+    });
+
+  const previewRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ key: HudKey; dx: number; dy: number } | null>(null);
+
+  const patchHud = (changes: Partial<HudSettings>) => patch({ hud: { ...draft.hud, ...changes } });
+
+  const patchModule = (key: HudKey, changes: Partial<HudModule>) => {
+    const hud: HudSettings = { ...draft.hud, [key]: { ...draft.hud[key], ...changes } };
+    patch({ hud });
+  };
+
+  const startDrag = (e: ReactPointerEvent<HTMLButtonElement>, key: HudKey) => {
+    if (!draft.hud.enabled) return;
+    const rect = previewRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const module = draft.hud[key];
+    dragRef.current = {
+      key,
+      dx: e.clientX - rect.left - module.x * rect.width,
+      dy: e.clientY - rect.top - module.y * rect.height,
+    };
+    previewRef.current?.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  };
+
+  const onDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    const rect = previewRef.current?.getBoundingClientRect();
+    if (!drag || !rect) return;
+    const x = Math.min(0.98, Math.max(0, (e.clientX - rect.left - drag.dx) / rect.width));
+    const y = Math.min(0.98, Math.max(0, (e.clientY - rect.top - drag.dy) / rect.height));
+    patchModule(drag.key, { x, y });
+  };
+
+  const endDrag = () => {
+    dragRef.current = null;
+  };
+
+  const resetHudPositions = () =>
+    patchHud({
+      fps: { ...draft.hud.fps, ...HUD_DEFAULT_POS.fps },
+      cps: { ...draft.hud.cps, ...HUD_DEFAULT_POS.cps },
+      keystrokes: { ...draft.hud.keystrokes, ...HUD_DEFAULT_POS.keystrokes },
+      coords: { ...draft.hud.coords, ...HUD_DEFAULT_POS.coords },
+      day: { ...draft.hud.day, ...HUD_DEFAULT_POS.day },
+      ip: { ...draft.hud.ip, ...HUD_DEFAULT_POS.ip },
+      armor: { ...draft.hud.armor, ...HUD_DEFAULT_POS.armor },
+      fullbright: { ...draft.hud.fullbright, ...HUD_DEFAULT_POS.fullbright },
     });
 
   const autoRam = draft.maxRamMb === null;
@@ -167,10 +251,26 @@ export function SettingsPanel({ settings, system, catalog, modsState, busy, canV
                 <Switch label="Enable mods" checked={draft.modsEnabled} onChange={(v) => patch({ modsEnabled: v })} />
               </div>
               {modsState?.error && (
-                <p className="mod-row__desc">
-                  Mods could not be downloaded ({modsState.error}). This version runs as vanilla. Use "Verify selected version" in
-                  Advanced to retry.
-                </p>
+                <div className="mod-error">
+                  <span className="mod-error__text">
+                    <span className="mod-error__title">Mod download failed</span>
+                    <span className="mod-error__body">
+                      {modsState.error}. This version will run as vanilla.
+                    </span>
+                  </span>
+                  <button
+                    className="btn btn--ghost"
+                    onClick={async () => {
+                      const id = draft.selectedVersion;
+                      if (!id) return;
+                      await onClearModState(id);
+                      onVerify();
+                    }}
+                    disabled={busy || !draft.selectedVersion}
+                  >
+                    Retry Mod Download
+                  </button>
+                </div>
               )}
               {[...new Set(catalog.map((m) => m.category))].map((category) => (
                 <div className="mod-group" key={category}>
@@ -257,6 +357,145 @@ export function SettingsPanel({ settings, system, catalog, modsState, busy, canV
                   </button>
                 </div>
               </div>
+            </>
+          )}
+
+          {tab === "hud" && (
+            <>
+              <div className="mod-row">
+                <span>
+                  <span className="mod-row__name">In-game HUD (Optional)</span>
+                  <span className="mod-row__desc">
+                    Custom overlay rendered by the bundled Diamond HUD mod (Fabric). Enable to use the in-game overlay.
+                  </span>
+                </span>
+                <Switch label="Enable HUD" checked={draft.hud.enabled} onChange={(v) => patchHud({ enabled: v })} />
+              </div>
+
+              <div className="field">
+                <div className="field__row">
+                  <span className="field__label">Layout</span>
+                  <button className="link" onClick={resetHudPositions} disabled={!draft.hud.enabled}>
+                    Reset positions
+                  </button>
+                </div>
+                <div
+                  ref={previewRef}
+                  className={`hud-preview ${draft.hud.enabled ? "" : "is-off"}`}
+                  onPointerMove={onDrag}
+                  onPointerUp={endDrag}
+                  onPointerCancel={endDrag}
+                  onPointerLeave={endDrag}
+                >
+                  <span className="hud-preview__hint">Drag to place modules</span>
+                  {HUD_MODULES.map(([key, label]) => {
+                    const module = draft.hud[key];
+                    return (
+                      <button
+                        type="button"
+                        key={key}
+                        className={`hud-preview__chip ${module.enabled ? "" : "is-disabled"}`}
+                        style={{ left: `${module.x * 100}%`, top: `${module.y * 100}%` }}
+                        onPointerDown={(e) => startDrag(e, key)}
+                        aria-label={`Move ${label} module`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="hud-modules">
+                {HUD_MODULES.map(([key, label]) => (
+                  <div className="mod-row" key={key}>
+                    <span>
+                      <span className="mod-row__name">{label}</span>
+                      <span className="mod-row__desc">{HUD_DESCRIPTIONS[key]}</span>
+                    </span>
+                    <Switch
+                      label={`${label} module`}
+                      checked={draft.hud[key].enabled}
+                      disabled={!draft.hud.enabled}
+                      onChange={(v) => patchModule(key, { enabled: v })}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="mod-row">
+                <span>
+                  <span className="mod-row__name">Fullbright</span>
+                  <span className="mod-row__desc">
+                    Rendering-level brightness (no slider): dark caves and nighttime stay clearly visible.
+                    Restores normal lighting immediately when turned off.
+                  </span>
+                </span>
+                <Switch
+                  label="Fullbright module"
+                  checked={draft.hud.fullbright.enabled}
+                  onChange={(v) => patchModule("fullbright", { enabled: v })}
+                />
+              </div>
+
+              <div className="hud-settings">
+                <label className="field">
+                  <div className="field__row">
+                    <span className="field__label">Scale</span>
+                    <span className="field__value">{draft.hud.scale.toFixed(2)}×</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0.5}
+                    max={2}
+                    step={0.05}
+                    value={draft.hud.scale}
+                    disabled={!draft.hud.enabled}
+                    onChange={(e) => patchHud({ scale: Number(e.target.value) })}
+                  />
+                </label>
+                <label className="field">
+                  <div className="field__row">
+                    <span className="field__label">Panel opacity</span>
+                    <span className="field__value">{Math.round(draft.hud.backgroundOpacity * 100)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={draft.hud.backgroundOpacity}
+                    disabled={!draft.hud.enabled}
+                    onChange={(e) => patchHud({ backgroundOpacity: Number(e.target.value) })}
+                  />
+                </label>
+                <div className="hud-colors">
+                  <label className="field">
+                    <span className="field__label">Accent</span>
+                    <input
+                      type="color"
+                      value={draft.hud.accent}
+                      disabled={!draft.hud.enabled}
+                      onChange={(e) => patchHud({ accent: e.target.value })}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field__label">Text</span>
+                    <input
+                      type="color"
+                      value={draft.hud.textColor}
+                      disabled={!draft.hud.enabled}
+                      onChange={(e) => patchHud({ textColor: e.target.value })}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <span className="field__hint">
+                Available for Minecraft 26.2 and newer. The HUD runs on Fabric; Fabric API is installed automatically
+                while the overlay is on, even if the performance mods are switched off. Changes apply the next time you
+                press Play.
+              </span>
             </>
           )}
 

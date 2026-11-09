@@ -20,6 +20,34 @@ export interface LastPlayed {
   at: number;
 }
 
+export interface HudModule {
+  enabled: boolean;
+  /** Fraction of the screen width, 0..1. */
+  x: number;
+  /** Fraction of the screen height, 0..1. */
+  y: number;
+}
+
+export interface HudSettings {
+  enabled: boolean;
+  /** 0.5..2.0 */
+  scale: number;
+  /** 0..1 */
+  backgroundOpacity: number;
+  /** #rrggbb */
+  accent: string;
+  /** #rrggbb */
+  textColor: string;
+  fps: HudModule;
+  cps: HudModule;
+  keystrokes: HudModule;
+  coords: HudModule;
+  day: HudModule;
+  ip: HudModule;
+  armor: HudModule;
+  fullbright: HudModule;
+}
+
 export interface Settings {
   username: string;
   maxRamMb: number | null;
@@ -31,6 +59,7 @@ export interface Settings {
   showSnapshots: boolean;
   modsEnabled: boolean;
   disabledMods: string[];
+  hud: HudSettings;
 }
 
 export interface ModCatalogEntry {
@@ -88,4 +117,17 @@ export interface GameStatus {
 export interface AppError {
   code: string;
   message: string;
+}
+
+export interface UpdateInfo {
+  /** Version without the leading "v", e.g. "0.3.0". */
+  version: string;
+  /** Release notes from GitHub. */
+  notes: string;
+}
+
+export interface AppInfo {
+  version: string;
+  developer: string;
+  website: string;
 }

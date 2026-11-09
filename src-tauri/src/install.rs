@@ -82,10 +82,10 @@ pub async fn load_installed(paths: &GamePaths, id: &str, env: &Env, settings: &S
         return Err(AppError::new("not_installed", format!("Version {id} needs to be installed or repaired.")));
     }
     let mut mods_dir = None;
-    if !mods::enabled(settings).is_empty() {
+    if !mods::enabled(settings, id).is_empty() {
         let outdated = || AppError::new("mods_outdated", "Mods need to be updated for this version.");
         let state = mods::read_state(paths, id)
-            .filter(|s| s.signature == mods::signature(settings))
+            .filter(|s| s.signature == mods::signature(settings, id))
             .ok_or_else(outdated)?;
         if let Some(profile_id) = &state.profile_id {
             let profile = manifest::read_local_meta(paths, profile_id).map_err(|_| outdated())?;

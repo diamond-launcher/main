@@ -1,10 +1,12 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { ErrorNotice } from "./components/ErrorNotice";
-import { Diamond, Gear } from "./components/Icons";
+import { Diamond, Gear, Info } from "./components/Icons";
+import { InfoPanel } from "./components/InfoPanel";
 import { InstallStatus } from "./components/InstallStatus";
 import { PlayButton, type PlayMode } from "./components/PlayButton";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { TitleBar } from "./components/TitleBar";
+import { UpdateBanner } from "./components/UpdateBanner";
 import { VersionPicker } from "./components/VersionPicker";
 import { useLauncher } from "./hooks/useLauncher";
 import { relativeTime } from "./lib/format";
@@ -12,6 +14,7 @@ import { relativeTime } from "./lib/format";
 export default function App() {
   const launcher = useLauncher();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
   const { selected, settings, system, install, game, error } = launcher;
 
   const mode: PlayMode = launcher.isInstalling
@@ -117,10 +120,31 @@ export default function App() {
             "Not played yet"
           )}
         </span>
-        <button className="icon-btn" aria-label="Settings" onClick={() => setSettingsOpen(true)} disabled={!settings}>
-          <Gear width={18} height={18} />
-        </button>
+        <div className="footer__actions">
+          <button className="icon-btn" aria-label="About Diamond Launcher" onClick={() => setInfoOpen(true)}>
+            <Info width={18} height={18} />
+          </button>
+          <button className="icon-btn" aria-label="Settings" onClick={() => setSettingsOpen(true)} disabled={!settings}>
+            <Gear width={18} height={18} />
+          </button>
+        </div>
       </footer>
+
+      {infoOpen && <InfoPanel onClose={() => setInfoOpen(false)} />}
+
+      {launcher.update && (
+        <UpdateBanner
+          version={launcher.update.version}
+          notes={launcher.update.notes}
+          busy={launcher.isUpdating || launcher.isInstalling || launcher.isGameActive}
+          progress={launcher.updateProgress}
+          onUpdate={() => void launcher.startUpdate()}
+          onLater={() => {
+            launcher.dismissUpdate();
+            launcher.clearUpdateProgress();
+          }}
+        />
+      )}
 
       {settingsOpen && settings && system && (
         <SettingsPanel
@@ -136,6 +160,7 @@ export default function App() {
             void launcher.installSelected(true);
           }}
           onClose={() => setSettingsOpen(false)}
+          onClearModState={launcher.clearModState}
         />
       )}
     </div>

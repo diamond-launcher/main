@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "diamondhud",
+  "version": "1.1.0",
+  "name": "Diamond HUD",
+  "description": "Customizable FPS, CPS, keystrokes and coordinates overlay for Diamond Launcher.",
+  "authors": ["Diamond Launcher"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["dev.diamond.hud.DiamondHud"]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": ">=26.2",
+    "fabric-screen-api-v1": "*"
+  },
+  "suggests": {
+    "modmenu": ">=10.0.0"
+  }
+}

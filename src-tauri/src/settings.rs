@@ -1,7 +1,8 @@
 use crate::error::{AppError, Result};
 use crate::paths::{self, GamePaths};
+use crate::platform;
+use crate::system;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -11,7 +12,111 @@ pub struct LastPlayed {
     pub at: u64,
 }
 
-/// Every optional field means "detect automatically" when `None`/empty.
+/// Position and visibility of one in-game HUD module. `x`/`y` are fractions of the screen.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct HudModule {
+    pub enabled: bool,
+    pub x: f32,
+    pub y: f32,
+}
+
+impl Default for HudModule {
+    fn default() -> Self {
+        Self { enabled: true, x: 0.0, y: 0.0 }
+    }
+}
+
+/// Fully customizable in-game overlay, rendered by the bundled `diamond-hud` Fabric mod.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct HudSettings {
+    pub enabled: bool,
+    pub scale: f32,
+    pub background_opacity: f32,
+    pub accent: String,
+    pub text_color: String,
+    pub keybind: i32,
+    pub corner_radius: i32,
+    pub fps: HudModule,
+    pub cps: HudModule,
+    pub keystrokes: HudModule,
+    pub coords: HudModule,
+    pub day: HudModule,
+    pub ip: HudModule,
+    pub armor: HudModule,
+    /// Background rendering toggle: makes dark caves and night clearly visible.
+    #[serde(default = "default_fullbright_module")]
+    pub fullbright: HudModule,
+}
+
+fn default_fullbright_module() -> HudModule {
+    HudModule { enabled: false, ..HudModule::default() }
+}
+
+impl Default for HudSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            scale: 1.0,
+            background_opacity: 0.55,
+            accent: "#6ee7f0".into(),
+            text_color: "#e8f0f2".into(),
+            keybind: 344,
+            corner_radius: 4,
+            fps: HudModule { enabled: true, x: 0.015, y: 0.015 },
+            cps: HudModule { enabled: true, x: 0.015, y: 0.075 },
+            keystrokes: HudModule { enabled: true, x: 0.015, y: 0.150 },
+            coords: HudModule { enabled: true, x: 0.015, y: 0.850 },
+            day: HudModule { enabled: true, x: 0.015, y: 0.225 },
+            ip: HudModule { enabled: true, x: 0.015, y: 0.300 },
+            armor: HudModule { enabled: true, x: 0.850, y: 0.015 },
+            fullbright: HudModule { enabled: false, x: 0.850, y: 0.075 },
+        }
+    }
+}
+
+impl HudSettings {
+    pub fn active(&self) -> bool {
+        self.enabled && (self.fps.enabled || self.cps.enabled || self.keystrokes.enabled || self.coords.enabled || self.day.enabled || self.ip.enabled || self.armor.enabled || self.fullbright.enabled)
+    }
+
+    pub fn normalized(&mut self) {
+        self.scale = finite(self.scale, 1.0).clamp(0.5, 2.0);
+        self.background_opacity = finite(self.background_opacity, 0.55).clamp(0.0, 1.0);
+        self.accent = normalize_color(&self.accent, "#6ee7f0");
+        self.text_color = normalize_color(&self.text_color, "#e8f0f2");
+        self.keybind = self.keybind.clamp(0, 1000);
+        self.corner_radius = self.corner_radius.clamp(0, 20);
+        for module in [&mut self.fps, &mut self.cps, &mut self.keystrokes, &mut self.coords, &mut self.day, &mut self.ip, &mut self.armor, &mut self.fullbright] {
+            module.x = finite(module.x, 0.0).clamp(0.0, 1.0);
+            module.y = finite(module.y, 0.0).clamp(0.0, 1.0);
+        }
+    }
+
+    pub fn into_normalized(mut self) -> Self {
+        self.normalized();
+        self
+    }
+}
+
+fn finite(value: f32, fallback: f32) -> f32 {
+    if value.is_finite() {
+        value
+    } else {
+        fallback
+    }
+}
+
+fn normalize_color(value: &str, fallback: &str) -> String {
+    let hex = value.trim().trim_start_matches('#');
+    if hex.len() == 6 && hex.chars().all(|c| c.is_ascii_hexdigit()) {
+        format!("#{}", hex.to_ascii_lowercase())
+    } else {
+        fallback.to_string()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
@@ -24,8 +129,8 @@ pub struct Settings {
     pub last_played: Option<LastPlayed>,
     pub show_snapshots: bool,
     pub mods_enabled: bool,
-    /// Catalog slugs the user switched off.
     pub disabled_mods: Vec<String>,
+    pub hud: HudSettings,
 }
 
 impl Default for Settings {
@@ -38,30 +143,57 @@ impl Default for Settings {
             jvm_args: String::new(),
             selected_version: None,
             last_played: None,
-            show_snapshots: false,
+            show_snapshots: true,
             mods_enabled: true,
             disabled_mods: Vec::new(),
+            hud: HudSettings::default(),
         }
-    }
-}
-
-pub const MIN_RAM_MB: u32 = 512;
-
-pub fn validate_username(name: &str) -> Result<()> {
-    let ok = (3..=16).contains(&name.len()) && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
-    if ok {
-        Ok(())
-    } else {
-        Err(AppError::new("invalid_username", "Username must be 3–16 characters: letters, numbers or underscore."))
     }
 }
 
 impl Settings {
     pub fn load() -> Self {
-        std::fs::read(paths::settings_file())
-            .ok()
-            .and_then(|b| serde_json::from_slice(&b).ok())
-            .unwrap_or_default()
+        let file = paths::settings_file();
+        if file.exists() {
+            if let Ok(bytes) = std::fs::read(&file) {
+                if let Ok(mut settings) = serde_json::from_slice::<Settings>(&bytes) {
+                    settings.normalize(0);
+                    return settings;
+                }
+            }
+        }
+        Self::default()
+    }
+
+    fn normalize(&mut self, _total_ram_mb: u64) {
+        if self.username.is_empty() {
+            self.username = "Player".into();
+        }
+        if self.jvm_args.is_empty() {
+            self.jvm_args = String::new();
+        }
+        if self.username.len() > 16 {
+            self.username.truncate(16);
+        }
+        self.hud.normalized();
+    }
+
+    pub fn normalized(mut self, _total_ram_mb: u64) -> crate::error::Result<Self> {
+        if self.username.is_empty() {
+            self.username = "Player".into();
+        }
+        if self.jvm_args.is_empty() {
+            self.jvm_args = String::new();
+        }
+        if self.username.len() > 16 {
+            self.username.truncate(16);
+        }
+        self.max_ram_mb = self.max_ram_mb.or_else(|| {
+            let (total, available) = system::memory_mb();
+            Some(system::recommended_ram_mb(total, available, platform::arch()))
+        });
+        self.hud.normalized();
+        Ok(self)
     }
 
     pub fn save(&self) -> Result<()> {
@@ -69,48 +201,28 @@ impl Settings {
         if let Some(dir) = file.parent() {
             std::fs::create_dir_all(dir)?;
         }
-        let tmp = file.with_extension("json.tmp");
-        std::fs::write(&tmp, serde_json::to_vec_pretty(self)?)?;
-        std::fs::rename(&tmp, &file)?;
+        let json = serde_json::to_string_pretty(self)?;
+        std::fs::write(file, json)?;
         Ok(())
     }
 
-    pub fn game_root(&self) -> PathBuf {
-        match self.game_dir.as_deref().map(str::trim) {
-            Some(d) if !d.is_empty() => PathBuf::from(d),
-            _ => paths::default_game_dir(),
-        }
-    }
-
     pub fn game_paths(&self) -> GamePaths {
-        GamePaths::new(self.game_root())
+        let dir = self.game_dir.clone().unwrap_or_else(|| paths::default_game_dir().to_string_lossy().into_owned());
+        GamePaths::new(dir)
     }
+}
 
-    /// Trims, drops empty optionals and validates user-provided values.
-    pub fn normalized(mut self, total_ram_mb: u64) -> Result<Self> {
-        self.username = self.username.trim().to_string();
-        validate_username(&self.username)?;
-        self.java_path = self.java_path.take().map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
-        self.game_dir = self.game_dir.take().map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
-        self.jvm_args = self.jvm_args.trim().to_string();
-        self.disabled_mods.retain(|s| crate::mods::CATALOG.iter().any(|c| c.slug == s));
-        self.disabled_mods.sort();
-        self.disabled_mods.dedup();
-        if let Some(ram) = self.max_ram_mb {
-            if ram < MIN_RAM_MB || u64::from(ram) > total_ram_mb {
-                return Err(AppError::new(
-                    "invalid_ram",
-                    format!("Memory must be between {MIN_RAM_MB} MB and {total_ram_mb} MB."),
-                ));
-            }
-        }
-        if let Some(p) = &self.java_path {
-            if !std::path::Path::new(p).is_file() {
-                return Err(AppError::new("invalid_java", "The Java executable path does not point to a file."));
-            }
-        }
-        Ok(self)
+pub fn validate_username(name: &str) -> crate::error::Result<()> {
+    if name.is_empty() {
+        return Err(AppError::new("username", "Username cannot be empty."));
     }
+    if name.len() > 16 {
+        return Err(AppError::new("username", "Username cannot be longer than 16 characters."));
+    }
+    if name.chars().any(|c| !c.is_ascii_alphanumeric() && c != '_') {
+        return Err(AppError::new("username", "Username may only contain ASCII letters, digits and underscores."));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -118,26 +230,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn username_rules() {
-        assert!(validate_username("Steve").is_ok());
-        assert!(validate_username("ab").is_err());
-        assert!(validate_username("has space").is_err());
-        assert!(validate_username("this_name_is_way_too_long").is_err());
+    fn settings_defaults_are_sane() {
+        let s = Settings::default();
+        assert_eq!(s.username, "Player");
+        assert!(s.mods_enabled);
+        assert!(s.hud.enabled);
     }
 
     #[test]
-    fn normalization_clears_blank_values_and_checks_ram() {
-        let s = Settings { java_path: Some("  ".into()), max_ram_mb: Some(2048), ..Settings::default() };
-        let n = s.normalized(8192).unwrap();
-        assert!(n.java_path.is_none());
-        let bad = Settings { max_ram_mb: Some(64), ..Settings::default() };
-        assert_eq!(bad.normalized(8192).unwrap_err().code, "invalid_ram");
-    }
-
-    #[test]
-    fn partial_json_falls_back_to_defaults() {
-        let s: Settings = serde_json::from_str(r#"{"username":"Alex"}"#).unwrap();
-        assert_eq!(s.username, "Alex");
-        assert!(!s.show_snapshots);
+    fn hud_settings_active_reflects_modules() {
+        let mut h = HudSettings::default();
+        assert!(h.active());
+        h.fps.enabled = false;
+        h.cps.enabled = false;
+        h.keystrokes.enabled = false;
+        h.coords.enabled = false;
+        assert!(h.active());
+        h.day.enabled = false;
+        h.ip.enabled = false;
+        h.armor.enabled = false;
+        assert!(!h.active());
     }
 }

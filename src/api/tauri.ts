@@ -2,12 +2,14 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   AppError,
+  AppInfo,
   GameStatus,
   InstallProgress,
   ModCatalogEntry,
   ModsState,
   Settings,
   SystemInfo,
+  UpdateInfo,
   VersionList,
 } from "./types";
 
@@ -31,7 +33,11 @@ export const api = {
   stopGame: () => invoke<void>("stop_game"),
   modCatalog: () => invoke<ModCatalogEntry[]>("list_mod_catalog"),
   modsStatus: (id: string) => invoke<ModsState | null>("mods_status", { id }),
+  clearModState: (id: string) => invoke<void>("clear_mod_state", { id }),
   runningGame: () => invoke<string | null>("is_game_running"),
+  appInfo: () => invoke<AppInfo>("get_app_info"),
+  checkUpdate: () => invoke<UpdateInfo | null>("check_update"),
+  installUpdate: () => invoke<void>("install_update"),
 };
 
 export const events = {
@@ -39,4 +45,8 @@ export const events = {
     listen<InstallProgress>("install-progress", (e) => cb(e.payload)),
   onGameStatus: (cb: (s: GameStatus) => void): Promise<UnlistenFn> =>
     listen<GameStatus>("game-status", (e) => cb(e.payload)),
+  onUpdateProgress: (cb: (p: { bytesDone: number; bytesTotal: number }) => void) =>
+    listen<{ bytes_done: number; bytes_total: number }>("update-progress", (e) =>
+      cb({ bytesDone: e.payload.bytes_done, bytesTotal: e.payload.bytes_total }),
+    ),
 };

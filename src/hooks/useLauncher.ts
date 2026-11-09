@@ -8,11 +8,14 @@ import type {
   ModsState,
   Settings,
   SystemInfo,
+  UpdateInfo,
   VersionInfo,
   VersionList,
 } from "../api/types";
 
 const RECOVERABLE_CODES = new Set(["not_installed", "java_missing", "mods_outdated"]);
+const UPDATE_FIRST_CHECK_MS = 4000;
+const UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000;
 
 export interface Launcher {
   ready: boolean;
@@ -29,6 +32,10 @@ export interface Launcher {
   modsState: ModsState | null;
   isInstalling: boolean;
   isGameActive: boolean;
+  update: UpdateInfo | null;
+  updateProgress: { bytesDone: number; bytesTotal: number } | null;
+  clearUpdateProgress: () => void;
+  isUpdating: boolean;
   dismissError: () => void;
   select: (id: string) => void;
   setShowSnapshots: (show: boolean) => void;
@@ -37,6 +44,9 @@ export interface Launcher {
   stop: () => Promise<void>;
   saveSettings: (next: Settings) => Promise<void>;
   reloadVersions: () => Promise<void>;
+  startUpdate: () => Promise<void>;
+  dismissUpdate: () => void;
+  clearModState: (id: string) => Promise<void>;
 }
 
 /** Single source of truth for launcher state; talks to the Rust backend only through `api`/`events`. */
@@ -53,8 +63,28 @@ export function useLauncher(): Launcher {
   const [ready, setReady] = useState(false);
   const [modCatalog, setModCatalog] = useState<ModCatalogEntry[]>([]);
   const [modsState, setModsState] = useState<ModsState | null>(null);
+  const [availableUpdate, setAvailableUpdate] = useState<UpdateInfo | null>(null);
+  const [dismissedVersion, setDismissedVersion] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState<{ bytesDone: number; bytesTotal: number } | null>(null);
   const selectedIdRef = useRef<string | null>(null);
   selectedIdRef.current = selectedId;
+
+  useEffect(() => {
+    let disposed = false;
+    const check = () =>
+      api
+        .checkUpdate()
+        .then((found) => !disposed && setAvailableUpdate(found))
+        .catch(() => undefined);
+    const first = window.setTimeout(() => void check(), UPDATE_FIRST_CHECK_MS);
+    const timer = window.setInterval(() => void check(), UPDATE_CHECK_INTERVAL_MS);
+    return () => {
+      disposed = true;
+      window.clearTimeout(first);
+      window.clearInterval(timer);
+    };
+  }, []);
 
   const loadVersions = useCallback(async (preferred: string | null) => {
     try {
@@ -116,6 +146,27 @@ export function useLauncher(): Launcher {
 
   useEffect(() => {
     api.modCatalog().then(setModCatalog).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    let unlisten: (() => void) | null = null;
+    events
+      .onUpdateProgress((p) => {
+        if (!disposed) {
+          setUpdateProgress(p);
+        }
+      })
+      .then((off) => {
+        unlisten = off;
+        if (disposed) {
+          off();
+        }
+      });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
   }, []);
 
   const installedFlag = selected?.installed ?? false;
@@ -212,6 +263,43 @@ export function useLauncher(): Launcher {
 
   const isGameActive = game?.state === "starting" || game?.state === "running";
 
+  const update = availableUpdate && availableUpdate.version !== dismissedVersion ? availableUpdate : null;
+
+  const clearUpdateProgress = () => setUpdateProgress(null);
+
+  const startUpdate = useCallback(async () => {
+    setUpdateProgress(null);
+    setIsUpdating(true);
+    setError(null);
+    try {
+      // On success the backend exits the app, so this only resolves on failure.
+      await api.installUpdate();
+    } catch (e) {
+      setUpdateProgress(null);
+      setError(toAppError(e));
+      setIsUpdating(false);
+    }
+  }, []);
+
+  const dismissUpdate = useCallback(() => {
+    setDismissedVersion(availableUpdate?.version ?? null);
+  }, [availableUpdate]);
+
+  const clearModState = useCallback(async (id: string) => {
+    setError(null);
+    try {
+      await api.clearModState(id);
+      setModsState(null);
+      // Refresh mods state after clearing
+      if (id) {
+        const state = await api.modsStatus(id);
+        setModsState(state);
+      }
+    } catch (e) {
+      setError(toAppError(e));
+    }
+  }, []);
+
   return {
     ready,
     settings,
@@ -227,6 +315,10 @@ export function useLauncher(): Launcher {
     modsState,
     isInstalling,
     isGameActive,
+    update,
+    updateProgress,
+    isUpdating,
+    clearUpdateProgress,
     dismissError: () => setError(null),
     select,
     setShowSnapshots,
@@ -235,5 +327,8 @@ export function useLauncher(): Launcher {
     stop,
     saveSettings,
     reloadVersions,
+    startUpdate,
+    dismissUpdate,
+    clearModState,
   };
 }

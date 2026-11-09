@@ -36,7 +36,12 @@ pub fn get_system_info() -> SystemInfo {
 
 #[tauri::command]
 pub fn get_settings() -> Settings {
-    Settings::load()
+    let mut settings = Settings::load();
+    // Adopt changes the player made in the in-game config screen.
+    if crate::hud::import_ingame(&mut settings) {
+        let _ = settings.save();
+    }
+    settings
 }
 
 #[tauri::command]
@@ -47,7 +52,13 @@ pub fn save_settings(settings: Settings) -> Result<Settings> {
     let current = Settings::load();
     next.selected_version = current.selected_version;
     next.last_played = current.last_played;
+    let hud_changed = next.hud != current.hud;
     next.save()?;
+    // Only rewrite the mod config when the HUD was edited here. Otherwise leave an
+    // in-game file untouched so `import_ingame` can pick it up before the next launch.
+    if hud_changed {
+        let _ = crate::hud::write_config(&next.game_paths(), &next.hud);
+    }
     Ok(next)
 }
 
@@ -101,10 +112,43 @@ pub fn list_mod_catalog() -> &'static [crate::mods::CatalogEntry] {
     crate::mods::CATALOG
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppInfo {
+    pub version: &'static str,
+    pub developer: &'static str,
+    pub website: &'static str,
+}
+
+#[tauri::command]
+pub fn get_app_info() -> AppInfo {
+    AppInfo {
+        version: env!("CARGO_PKG_VERSION"),
+        developer: "den3zx",
+        website: "https://github.com/den3zx/diamond-launcher",
+    }
+}
+
 #[tauri::command]
 pub fn mods_status(id: String) -> Result<Option<crate::mods::ModsState>> {
     paths::validate_version_id(&id)?;
     Ok(crate::mods::read_state(&Settings::load().game_paths(), &id))
+}
+
+#[tauri::command]
+pub fn clear_mod_state(id: String) -> Result<()> {
+    paths::validate_version_id(&id)?;
+    let paths = Settings::load().game_paths();
+    let state_file = paths.mods_state_file(&id);
+    if state_file.exists() {
+        std::fs::remove_file(state_file)?;
+    }
+    // Also remove downloaded mod jars
+    let mods_dir = paths.mods_dir(&id);
+    if mods_dir.exists() {
+        std::fs::remove_dir_all(mods_dir)?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
