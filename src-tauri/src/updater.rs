@@ -125,10 +125,20 @@ pub async fn install_update(app: AppHandle, state: State<'_, AppState>) -> Resul
     }
 
     let exe = std::env::current_exe()?;
+    // Tauri NSIS bundles install per-user to %LOCALAPPDATA%\Programs\Diamond Launcher.
+    let installed = std::env::var("LOCALAPPDATA")
+        .ok()
+        .map(|p| std::path::PathBuf::from(p).join(r#"Programs\Diamond Launcher\diamond-launcher.exe"#));
+    let installed_quoted = installed
+        .as_ref()
+        .map(|p| ps_quote(p))
+        .unwrap_or_else(|| ps_quote(&exe));
     let script = format!(
         "Wait-Process -Id {pid} -ErrorAction SilentlyContinue; \
          Start-Process -FilePath {installer} -ArgumentList '/S' -Wait; \
-         Start-Process -FilePath {exe}",
+         $installed = {installed_quoted}; \
+         if (Test-Path $installed) {{ Start-Process -FilePath $installed }} \
+         else {{ Start-Process -FilePath {exe} }}",
         pid = std::process::id(),
         installer = ps_quote(&installer),
         exe = ps_quote(&exe),
