@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.3] - 2026-11-09
+
+### Fixed
+- HUD module text vertical alignment: FPS, CPS, Coordinates, Day and IP texts are now truly vertically centered inside their panels (no top offset).
+- Fullbright keybind label: `"key.diamondhud.fullbright"` now shows as "Fullbright Toggle" instead of the raw key name in controls/keybind menus.
+
 ## [0.5.2] - 2026-11-09
 
 ### Changed

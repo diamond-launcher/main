@@ -1,7 +1,7 @@
 {
   "key.categories.diamondhud": "Diamond HUD",
   "key.diamondhud.open_config": "Open Diamond HUD Config",
-  "key.diamondhud.fullbright": "Fullbright",
+  "key.diamondhud.fullbright": "Fullbright Toggle",
   "diamondhud.config.title": "Diamond HUD Settings",
   "diamondhud.config.preview": "Preview (drag to move)"
 }
