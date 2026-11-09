@@ -21,8 +21,6 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 #[serde(rename_all = "camelCase")]
 pub struct UpdateInfo {
     pub version: String,
-    /// Release notes from the GitHub release.
-    pub notes: String,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -35,8 +33,6 @@ pub struct UpdateProgress {
 #[derive(Debug, Deserialize)]
 struct Release {
     tag_name: String,
-    /// Release notes body.
-    body: String,
     assets: Vec<Asset>,
 }
 
@@ -57,7 +53,6 @@ pub async fn check_update(state: State<'_, AppState>) -> Result<Option<UpdateInf
     }
     Ok(Some(UpdateInfo {
         version: strip_v(&release.tag_name).to_string(),
-        notes: release.body.trim().to_string(),
     }))
 }
 
@@ -268,7 +263,6 @@ mod tests {
     fn selects_installer_asset_only() {
         let release = Release {
             tag_name: "v0.2.0".into(),
-            body: String::new(),
             assets: vec![
                 Asset { name: "notes.txt".into(), browser_download_url: "https://x/notes".into(), digest: None },
                 Asset {

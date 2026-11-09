@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.5.2] - 2026-11-09
+
+### Changed
+- Update alert: release notes (açıklama) artık kontrol edilirken çekilmiyor; alert ekranın ortasında, kenarlardan bağımsız bir ortalanmış kutu olarak görünür.
+
 ## [0.5.1] - 2026-11-09
 
 ### Fixed

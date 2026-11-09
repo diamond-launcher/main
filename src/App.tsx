@@ -135,7 +135,6 @@ export default function App() {
       {launcher.update && (
         <UpdateBanner
           version={launcher.update.version}
-          notes={launcher.update.notes}
           busy={launcher.isUpdating || launcher.isInstalling || launcher.isGameActive}
           progress={launcher.updateProgress}
           onUpdate={() => void launcher.startUpdate()}

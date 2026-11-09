@@ -122,8 +122,6 @@ export interface AppError {
 export interface UpdateInfo {
   /** Version without the leading "v", e.g. "0.3.0". */
   version: string;
-  /** Release notes from GitHub. */
-  notes: string;
 }
 
 export interface AppInfo {
