@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.4] - 2026-11-09
+
+### Fixed
+- Update alert: now shows a title ("Yeni Sürüm Mevcut"), action buttons at the bottom, and a darkened backdrop so it is clearly an alert centered on the screen.
+- HUD module text vertical alignment: FPS, CPS, Coordinates, Day and IP texts are now truly vertically centered inside their panels (removed the extra top offset).
+
 ## [0.5.3] - 2026-11-09
 
 ### Fixed

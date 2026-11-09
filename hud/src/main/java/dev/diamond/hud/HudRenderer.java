@@ -175,7 +175,7 @@ public final class HudRenderer implements HudElement {
         int height = textHeight(font, 1);
 
         panel(g, width, height, c);
-        int textY = PAD + font.lineHeight / 2 + 1;
+        int textY = PAD + font.lineHeight / 2;
         g.text(font, label, PAD, textY, c.accent, false);
         g.text(font, value, PAD + font.width(label) + 5, textY, c.text, false);
     }
@@ -189,7 +189,7 @@ public final class HudRenderer implements HudElement {
         int height = textHeight(font, 2) + GAP;
 
         panel(g, width, height, c);
-        int line1Y = PAD + font.lineHeight / 2 + 1;
+        int line1Y = PAD + font.lineHeight / 2;
         int line2Y = line1Y + font.lineHeight + GAP;
         g.text(font, "LMB", PAD, line1Y, c.accent, false);
         g.text(font, left, PAD + font.width("LMB") + 5, line1Y, c.text, false);
@@ -205,7 +205,7 @@ public final class HudRenderer implements HudElement {
         int height = textHeight(font, 1);
 
         panel(g, width, height, c);
-        int textY = PAD + font.lineHeight / 2 + 1;
+        int textY = PAD + font.lineHeight / 2;
         g.text(font, "XYZ", PAD, textY, c.accent, false);
         g.text(font, value, PAD + font.width("XYZ") + 5, textY, c.text, false);
     }
@@ -218,7 +218,7 @@ public final class HudRenderer implements HudElement {
         int height = textHeight(font, 1);
 
         panel(g, width, height, c);
-        int textY = PAD + font.lineHeight / 2 + 1;
+        int textY = PAD + font.lineHeight / 2;
         g.text(font, "DAY", PAD, textY, c.accent, false);
         g.text(font, value, PAD + font.width("DAY") + 5, textY, c.text, false);
     }
@@ -231,7 +231,7 @@ public final class HudRenderer implements HudElement {
         int height = textHeight(font, 1);
 
         panel(g, width, height, c);
-        int textY = PAD + font.lineHeight / 2 + 1;
+        int textY = PAD + font.lineHeight / 2;
         g.text(font, "IP", PAD, textY, c.accent, false);
         g.text(font, value, PAD + font.width("IP") + 5, textY, c.text, false);
     }

@@ -15,21 +15,26 @@ export function UpdateBanner({ version, busy, progress, onUpdate, onLater }: Pro
     : 0;
 
   return (
-    <div className="update" role="alert">
+    <div className="update__backdrop" role="alert" aria-modal="true">
       <div className="update__card">
-        <span className="update__text">Diamond Launcher {version} is available</span>
+        <div className="update__header">
+          <span className="update__title">Yeni Sürüm Mevcut</span>
+          <span className="update__version">Diamond Launcher {version}</span>
+        </div>
         {progress != null && (
           <div className="update__progress">
             <ProgressBar value={progress.bytesDone / Math.max(1, progress.bytesTotal)} />
             <span className="update__progress-text">{percent}%</span>
           </div>
         )}
-        <button className="btn btn--primary" onClick={onUpdate} disabled={busy}>
-          {busy ? (downloading ? "Downloading…" : "Updating…") : "Update now"}
-        </button>
-        <button className="link" onClick={onLater} disabled={busy}>
-          Later
-        </button>
+        <div className="update__actions">
+          <button className="btn btn--primary" onClick={onUpdate} disabled={busy}>
+            {busy ? (downloading ? "İndiriliyor…" : "Güncelleniyor…") : "Güncelle"}
+          </button>
+          <button className="link" onClick={onLater} disabled={busy}>
+            Sonra
+          </button>
+        </div>
       </div>
     </div>
   );
