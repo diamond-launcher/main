@@ -2,6 +2,7 @@ package dev.diamond.hud;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.KeyMapping;
@@ -69,6 +70,11 @@ public final class DiamondHud implements ClientModInitializer {
         KeyMappingHelper.registerKeyMapping(OPEN_CONFIG);
         KeyMappingHelper.registerKeyMapping(FULLBRIGHT);
 
+        // Client-only time of day override. Restore before the level tick and apply
+        // after it, so the world renders the configured time without touching the server.
+        ClientTickEvents.START_CLIENT_TICK.register(client -> TimeChanger.beforeTick());
+        ClientTickEvents.END_CLIENT_TICK.register(client -> TimeChanger.afterTick(CONFIG.get()));
+
         // Themed main menu, pause menu and mod menu button (Fabric Screen API).
         try {
             ClientTheme.register();
@@ -99,6 +105,11 @@ public final class DiamondHud implements ClientModInitializer {
     /** Config file shared with the in-game menu and the launcher. */
     public static Path configPath() {
         return CONFIG_PATH;
+    }
+
+    /** The live config instance shared by the tick handlers and the in-game menu. */
+    static HudConfig config() {
+        return CONFIG;
     }
 
     /**

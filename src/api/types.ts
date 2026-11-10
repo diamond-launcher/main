@@ -51,8 +51,9 @@ export interface HudSettings {
   armor: HudModule;
   fullbright: HudModule;
   timeChanger: HudModule;
+  /** Time of day used by the Time Changer module (0..23999 overworld clock ticks). */
+  timeChangerTime: number;
   ping: HudModule;
-  toggleSneak: HudModule;
   toggleSprint: HudModule;
 }
 

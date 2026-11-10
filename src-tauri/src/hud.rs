@@ -75,6 +75,10 @@ pub fn write_config(paths: &GamePaths, hud: &HudSettings) -> Result<PathBuf> {
                     merged.armor.enabled = ingame_hud.armor.enabled;
                     merged.armor.x = ingame_hud.armor.x;
                     merged.armor.y = ingame_hud.armor.y;
+                    merged.time_changer.enabled = ingame_hud.time_changer.enabled;
+                    merged.time_changer.x = ingame_hud.time_changer.x;
+                    merged.time_changer.y = ingame_hud.time_changer.y;
+                    merged.time_changer_time = ingame_hud.time_changer_time;
                     // Write merged config
                     let tmp = file.with_extension("properties.tmp");
                     std::fs::write(&tmp, properties(&merged))?;
@@ -111,8 +115,8 @@ fn properties(hud: &HudSettings) -> String {
     module(&mut out, "armor", &hud.armor);
     module(&mut out, "fullbright", &hud.fullbright);
     module(&mut out, "timeChanger", &hud.time_changer);
+    out.push_str(&format!("timeChangerTime={}\n", hud.time_changer_time));
     module(&mut out, "ping", &hud.ping);
-    module(&mut out, "toggleSneak", &hud.toggle_sneak);
     module(&mut out, "toggleSprint", &hud.toggle_sprint);
     out
 }
@@ -206,8 +210,8 @@ fn parse_ingame(text: &str) -> Option<HudSettings> {
         armor: module("armor", default.armor.clone()),
         fullbright: module("fullbright", default.fullbright.clone()),
         time_changer: module("timeChanger", default.time_changer.clone()),
+        time_changer_time: integer("timeChangerTime", default.time_changer_time),
         ping: module("ping", default.ping.clone()),
-        toggle_sneak: module("toggleSneak", default.toggle_sneak.clone()),
         toggle_sprint: module("toggleSprint", default.toggle_sprint.clone()),
     })
 }
@@ -226,6 +230,7 @@ mod tests {
             text_color: "#fedcba".into(),
             keybind: 345,
             corner_radius: 8,
+            time_changer_time: 18000,
             keystrokes: HudModule { enabled: false, x: 0.5, y: 0.75 },
             ..HudSettings::default()
         };
@@ -237,6 +242,8 @@ mod tests {
         assert!(text.contains("text=#fedcba"));
         assert!(text.contains("keybind=345"));
         assert!(text.contains("cornerRadius=8"));
+        assert!(text.contains("timeChangerTime=18000"));
+        assert!(!text.contains("toggleSneak"));
         assert!(text.contains("keystrokes.enabled=false"));
         assert!(text.contains("keystrokes.x=0.5000"));
         assert!(text.contains("keystrokes.y=0.7500"));
@@ -270,7 +277,7 @@ mod tests {
         let file = config_path(&dir);
 
         let text = format!(
-            "#{INGAME_MARKER}\nkeybind=75\nscale=1.500\ncornerRadius=2\nfps.x=0.4000\nfps.y=0.5000\n"
+            "#{INGAME_MARKER}\nkeybind=75\nscale=1.500\ncornerRadius=2\nfps.x=0.4000\nfps.y=0.5000\ntimeChangerTime=18000\n"
         );
         std::fs::write(&file, text).unwrap();
 
@@ -278,6 +285,7 @@ mod tests {
         assert_eq!(settings.hud.keybind, 75);
         assert_eq!(settings.hud.scale, 1.5);
         assert_eq!(settings.hud.corner_radius, 2);
+        assert_eq!(settings.hud.time_changer_time, 18000);
         assert!((settings.hud.fps.x - 0.4).abs() < 1e-6);
 
         // A file written by the launcher must not override the saved settings.

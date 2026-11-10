@@ -51,12 +51,12 @@ pub struct HudSettings {
     /// Client-side time of day override.
     #[serde(default = "default_off_module")]
     pub time_changer: HudModule,
+    /// Time of day used by the Time Changer module (0..23999 overworld clock ticks).
+    #[serde(default = "default_time_changer_time")]
+    pub time_changer_time: i32,
     /// Shows the player's current server ping.
     #[serde(default = "default_off_module")]
     pub ping: HudModule,
-    /// Toggle sneak behavior (hold vs toggle).
-    #[serde(default = "default_off_module")]
-    pub toggle_sneak: HudModule,
     /// Toggle sprint behavior (hold vs toggle).
     #[serde(default = "default_off_module")]
     pub toggle_sprint: HudModule,
@@ -68,6 +68,10 @@ fn default_fullbright_module() -> HudModule {
 
 fn default_off_module() -> HudModule {
     HudModule { enabled: false, ..HudModule::default() }
+}
+
+fn default_time_changer_time() -> i32 {
+    6000
 }
 
 impl Default for HudSettings {
@@ -89,16 +93,16 @@ impl Default for HudSettings {
             armor: HudModule { enabled: true, x: 0.850, y: 0.015 },
             fullbright: HudModule { enabled: false, x: 0.850, y: 0.075 },
             time_changer: HudModule { enabled: false, x: 0.850, y: 0.135 },
+            time_changer_time: 6000,
             ping: HudModule { enabled: false, x: 0.850, y: 0.200 },
-            toggle_sneak: HudModule { enabled: false, x: 0.850, y: 0.265 },
-            toggle_sprint: HudModule { enabled: false, x: 0.850, y: 0.330 },
+            toggle_sprint: HudModule { enabled: false, x: 0.850, y: 0.265 },
         }
     }
 }
 
 impl HudSettings {
     pub fn active(&self) -> bool {
-        self.enabled && (self.fps.enabled || self.cps.enabled || self.keystrokes.enabled || self.coords.enabled || self.day.enabled || self.ip.enabled || self.armor.enabled || self.fullbright.enabled || self.time_changer.enabled || self.ping.enabled || self.toggle_sneak.enabled || self.toggle_sprint.enabled)
+        self.enabled && (self.fps.enabled || self.cps.enabled || self.keystrokes.enabled || self.coords.enabled || self.day.enabled || self.ip.enabled || self.armor.enabled || self.fullbright.enabled || self.time_changer.enabled || self.ping.enabled || self.toggle_sprint.enabled)
     }
 
     pub fn normalized(&mut self) {
@@ -108,7 +112,8 @@ impl HudSettings {
         self.text_color = normalize_color(&self.text_color, "#e8f0f2");
         self.keybind = self.keybind.clamp(0, 1000);
         self.corner_radius = self.corner_radius.clamp(0, 3);
-        for module in [&mut self.fps, &mut self.cps, &mut self.keystrokes, &mut self.coords, &mut self.day, &mut self.ip, &mut self.armor, &mut self.fullbright, &mut self.time_changer, &mut self.ping, &mut self.toggle_sneak, &mut self.toggle_sprint] {
+        self.time_changer_time = self.time_changer_time.clamp(0, 23999);
+        for module in [&mut self.fps, &mut self.cps, &mut self.keystrokes, &mut self.coords, &mut self.day, &mut self.ip, &mut self.armor, &mut self.fullbright, &mut self.time_changer, &mut self.ping, &mut self.toggle_sprint] {
             module.x = finite(module.x, 0.0).clamp(0.0, 1.0);
             module.y = finite(module.y, 0.0).clamp(0.0, 1.0);
         }
@@ -270,5 +275,17 @@ mod tests {
         h.ip.enabled = false;
         h.armor.enabled = false;
         assert!(!h.active());
+    }
+
+    #[test]
+    fn time_changer_time_is_clamped() {
+        let mut h = HudSettings::default();
+        assert_eq!(h.time_changer_time, 6000);
+        h.time_changer_time = 99999;
+        h.normalized();
+        assert_eq!(h.time_changer_time, 23999);
+        h.time_changer_time = -5;
+        h.normalized();
+        assert_eq!(h.time_changer_time, 0);
     }
 }

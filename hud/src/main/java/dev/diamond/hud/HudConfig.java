@@ -45,12 +45,12 @@ final class HudConfig {
         Module ip;
         Module armor;
         Module fullbright;
-        /// Client-side time of day override (0..24000 ticks).
+        /// Client-side time of day override (0..23999 ticks). Not a visual HUD module.
         Module timeChanger;
+        /// Time of day used by the Time Changer module, in overworld clock ticks.
+        int timeChangerTime;
         /// Shows the player's current server ping.
         Module ping;
-        /// Toggle sneak behavior (hold vs toggle).
-        Module toggleSneak;
         /// Toggle sprint behavior (hold vs toggle).
         Module toggleSprint;
 
@@ -73,9 +73,9 @@ final class HudConfig {
             s.armor = new Module(true, 0.850, 0.015);
             s.fullbright = new Module(false, 0.850, 0.075);
             s.timeChanger = new Module(false, 0.850, 0.135);
+            s.timeChangerTime = 6000; // noon
             s.ping = new Module(false, 0.850, 0.200);
-            s.toggleSneak = new Module(false, 0.850, 0.265);
-            s.toggleSprint = new Module(false, 0.850, 0.330);
+            s.toggleSprint = new Module(false, 0.850, 0.265);
             return s;
         }
     }
@@ -137,8 +137,8 @@ final class HudConfig {
         writeModule(properties, "armor", s.armor);
         writeModule(properties, "fullbright", s.fullbright);
         writeModule(properties, "timeChanger", s.timeChanger);
+        properties.setProperty("timeChangerTime", Integer.toString(s.timeChangerTime));
         writeModule(properties, "ping", s.ping);
-        writeModule(properties, "toggleSneak", s.toggleSneak);
         writeModule(properties, "toggleSprint", s.toggleSprint);
 
         Path tmp = path.resolveSibling(path.getFileName() + ".tmp");
@@ -185,8 +185,8 @@ final class HudConfig {
         s.armor = module(p, "armor", s.armor);
         s.fullbright = module(p, "fullbright", s.fullbright);
         s.timeChanger = module(p, "timeChanger", s.timeChanger);
+        s.timeChangerTime = number(p, "timeChangerTime", s.timeChangerTime, 0, 23999);
         s.ping = module(p, "ping", s.ping);
-        s.toggleSneak = module(p, "toggleSneak", s.toggleSneak);
         s.toggleSprint = module(p, "toggleSprint", s.toggleSprint);
         return s;
     }

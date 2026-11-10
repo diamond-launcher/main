@@ -28,22 +28,17 @@ public final class HudRenderer implements HudElement {
     public static final String DAY = "day";
     public static final String IP = "ip";
     public static final String ARMOR = "armor";
-    public static final String TIME_CHANGER = "timeChanger";
     public static final String PING = "ping";
-    // TOGGLE_SNEAK / TOGGLE_SPRINT are behavior toggles, not visual HUD modules
-    public static final String TOGGLE_SNEAK = "toggleSneak";
+    // TOGGLE_SPRINT is a behavior toggle, not a visual HUD module
     public static final String TOGGLE_SPRINT = "toggleSprint";
     // FULLBRIGHT is not a HUD module - it's a background gamma toggle
-    public static final String[] TYPES = {FPS, CPS, KEYSTROKES, COORDS, DAY, IP, ARMOR, TIME_CHANGER, PING};
+    public static final String[] TYPES = {FPS, CPS, KEYSTROKES, COORDS, DAY, IP, ARMOR, PING};
 
     private final HudConfig config;
     private final ArrayDeque<Long> leftClicks = new ArrayDeque<>();
     private final ArrayDeque<Long> rightClicks = new ArrayDeque<>();
     private boolean leftWasDown;
     private boolean rightWasDown;
-    /** Toggle sneak state: true when sneak is locked on. */
-    private boolean sneakToggleState;
-    private boolean sneakKeyWasDown;
     /** Toggle sprint state: true when sprint is locked on. */
     private boolean sprintToggleState;
     private boolean sprintKeyWasDown;
@@ -79,11 +74,9 @@ public final class HudRenderer implements HudElement {
         drawModuleAt(graphics, DAY, settings, settings.day, mc, (float) (settings.day.x * w), (float) (settings.day.y * h), 1.0f);
         drawModuleAt(graphics, IP, settings, settings.ip, mc, (float) (settings.ip.x * w), (float) (settings.ip.y * h), 1.0f);
         drawModuleAt(graphics, ARMOR, settings, settings.armor, mc, (float) (settings.armor.x * w), (float) (settings.armor.y * h), 1.0f);
-        drawModuleAt(graphics, TIME_CHANGER, settings, settings.timeChanger, mc, (float) (settings.timeChanger.x * w), (float) (settings.timeChanger.y * h), 1.0f);
         drawModuleAt(graphics, PING, settings, settings.ping, mc, (float) (settings.ping.x * w), (float) (settings.ping.y * h), 1.0f);
 
-        // Apply toggle sneak / sprint behavior each frame.
-        applyToggleSneak(settings);
+        // Apply toggle sprint behavior each frame.
         applyToggleSprint(settings);
     }
 
@@ -123,7 +116,6 @@ public final class HudRenderer implements HudElement {
             case COORDS -> coordsContent(g, c, mc);
             case DAY -> dayContent(g, c, mc);
             case IP -> ipContent(g, c, mc);
-            case TIME_CHANGER -> timeChangerContent(g, c, mc);
             case PING -> pingContent(g, c, mc);
             case ARMOR -> armorContent(g, c, mc);
             default -> { }
@@ -166,10 +158,6 @@ public final class HudRenderer implements HudElement {
             }
             case IP -> {
                 width = textWidth(font, "IP", ipValue(mc));
-                height = textHeight(font, 1);
-            }
-            case TIME_CHANGER -> {
-                width = textWidth(font, "TIME", timeValue(mc));
                 height = textHeight(font, 1);
             }
             case PING -> {
@@ -261,19 +249,6 @@ public final class HudRenderer implements HudElement {
         int textY = PAD;
         g.text(font, "IP", PAD, textY, c.accent, false);
         g.text(font, value, PAD + font.width("IP") + 5, textY, c.text, false);
-    }
-
-    /** Time Changer module content: shows current time of day. */
-    private void timeChangerContent(GuiGraphicsExtractor g, HudConfig.Settings c, Minecraft mc) {
-        Font font = font(mc);
-        String value = timeValue(mc);
-        int width = textWidth(font, "TIME", value);
-        int height = textHeight(font, 1);
-
-        panel(g, width, height, c);
-        int textY = PAD;
-        g.text(font, "TIME", PAD, textY, c.accent, false);
-        g.text(font, value, PAD + font.width("TIME") + 5, textY, c.text, false);
     }
 
     /** Ping module content: shows current server ping. */
@@ -470,17 +445,6 @@ public final class HudRenderer implements HudElement {
         return "Disconnected";
     }
 
-    /** Current time of day as HH:MM. */
-    private String timeValue(Minecraft mc) {
-        if (mc != null && mc.player != null && mc.player.level() != null) {
-            long time = mc.player.level().getOverworldClockTime() % 24000L;
-            int hour = (int) (time / 1000L);
-            int minute = (int) ((time % 1000L) * 60L / 1000L);
-            return String.format("%02d:%02d", hour, minute);
-        }
-        return "00:00";
-    }
-
     /** Current server ping in ms, or "--" when not connected. */
     private String pingValue(Minecraft mc) {
         if (mc != null && mc.player != null) {
@@ -588,25 +552,6 @@ public final class HudRenderer implements HudElement {
 
     private static int withAlpha(int color, float alpha) {
         return (Math.round(alpha * 255.0f) << 24) | (color & 0x00FFFFFF);
-    }
-
-    /** Toggle sneak: press Shift once to lock sneak on/off. */
-    private void applyToggleSneak(HudConfig.Settings c) {
-        if (!c.toggleSneak.enabled) {
-            return;
-        }
-        Minecraft mc = Minecraft.getInstance();
-        if (mc == null || mc.player == null || mc.options == null) {
-            return;
-        }
-        boolean down = mc.options.keyShift.isDown();
-        if (down && !sneakKeyWasDown) {
-            sneakToggleState = !sneakToggleState;
-        }
-        sneakKeyWasDown = down;
-        if (sneakToggleState) {
-            mc.player.setShiftKeyDown(true);
-        }
     }
 
     /** Toggle sprint: press Sprint key once to lock sprint on/off. */

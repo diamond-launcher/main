@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.2] - 2026-11-11
+
+### Changed
+- **Time Changer now behaves like Lunar Client.** It no longer draws anything on the HUD. Enable it in Modules and open its settings to get a horizontal time slider that updates the displayed world time live while you drag.
+- The time is applied only on the client: the sky, sun, moon and stars change for you, while the server, other players and the real world time are untouched. Disabling the module returns to the normal world time immediately.
+- The selected time is stored in the HUD config (`timeChangerTime`, 0..23999 ticks) and survives restarts.
+
+### Removed
+- **Toggle Sneak module removed completely** (module, setting, config key and UI), including its old config entry. Toggle Sprint is unchanged.
+
+### Fixed
+- Time Changer no longer advances the day counter or fights incoming server time updates: the natural clock is restored before each level tick and the override is applied after it, so time keeps flowing normally underneath.
+
 ## [0.6.1] - 2026-11-10
 
 ### Fixed

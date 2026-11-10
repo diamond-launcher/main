@@ -22,10 +22,9 @@ const HUD_MODULES = [
   ["day", "Day Counter"],
   ["ip", "IP Info"],
   ["armor", "Armor HUD"],
-  ["timeChanger", "Time Changer"],
   ["ping", "Ping"],
 ] as const;
-type HudKey = (typeof HUD_MODULES)[number][0] | "fullbright" | "toggleSneak" | "toggleSprint";
+type HudKey = (typeof HUD_MODULES)[number][0] | "fullbright" | "timeChanger" | "toggleSprint";
 
 const HUD_DEFAULT_POS: Record<HudKey, { x: number; y: number }> = {
   fps: { x: 0.012, y: 0.012 },
@@ -38,8 +37,7 @@ const HUD_DEFAULT_POS: Record<HudKey, { x: number; y: number }> = {
   fullbright: { x: 0.85, y: 0.075 },
   timeChanger: { x: 0.85, y: 0.135 },
   ping: { x: 0.85, y: 0.2 },
-  toggleSneak: { x: 0.85, y: 0.265 },
-  toggleSprint: { x: 0.85, y: 0.33 },
+  toggleSprint: { x: 0.85, y: 0.265 },
 };
 
 const HUD_DESCRIPTIONS: Record<HudKey, string> = {
@@ -51,13 +49,12 @@ const HUD_DESCRIPTIONS: Record<HudKey, string> = {
   ip: "Connected server address.",
   armor: "Equipped armor with durability.",
   fullbright: "Rendering-level brightness; enable/disable only.",
-  timeChanger: "Client-side time of day override. Does not affect the server or other players.",
+  timeChanger: "Client-side time of day override. Set the time from the Modules tab in-game.",
   ping: "Shows your current server ping in milliseconds.",
-  toggleSneak: "Toggle sneak on/off with Shift instead of holding it.",
   toggleSprint: "Toggle sprint on/off with the sprint key instead of holding it.",
 };
 
-const HUD_KEYS: HudKey[] = [...HUD_MODULES.map(([key]) => key), "fullbright", "toggleSneak", "toggleSprint"];
+const HUD_KEYS: HudKey[] = [...HUD_MODULES.map(([key]) => key), "fullbright", "timeChanger", "toggleSprint"];
 
 /**
  * The backend serializes HUD modules in camelCase. A partial or outdated settings
@@ -74,8 +71,12 @@ function normalizeHud(hud: HudSettings | undefined): HudSettings {
     textColor: "#e8f0f2",
     keybind: 344,
     cornerRadius: 3,
+    timeChangerTime: 6000,
     ...source,
   } as HudSettings;
+  if (!Number.isFinite(next.timeChangerTime)) {
+    next.timeChangerTime = 6000;
+  }
   for (const key of HUD_KEYS) {
     const fallback: HudModule = { enabled: false, ...HUD_DEFAULT_POS[key] };
     next[key] = { ...fallback, ...(source[key] ?? {}) };
@@ -194,10 +195,7 @@ export function SettingsPanel({ settings, system, catalog, modsState, busy, canV
       ip: { ...draft.hud.ip, ...HUD_DEFAULT_POS.ip },
       armor: { ...draft.hud.armor, ...HUD_DEFAULT_POS.armor },
       fullbright: { ...draft.hud.fullbright, ...HUD_DEFAULT_POS.fullbright },
-      timeChanger: { ...draft.hud.timeChanger, ...HUD_DEFAULT_POS.timeChanger },
       ping: { ...draft.hud.ping, ...HUD_DEFAULT_POS.ping },
-      toggleSneak: { ...draft.hud.toggleSneak, ...HUD_DEFAULT_POS.toggleSneak },
-      toggleSprint: { ...draft.hud.toggleSprint, ...HUD_DEFAULT_POS.toggleSprint },
     });
 
   const autoRam = draft.maxRamMb === null;
@@ -478,26 +476,30 @@ export function SettingsPanel({ settings, system, catalog, modsState, busy, canV
                 />
               </div>
 
-              {(() => {
-                const extra: HudKey[] = ["toggleSneak", "toggleSprint"];
-                const labels: Record<string, string> = {
-                  toggleSneak: "Toggle Sneak",
-                  toggleSprint: "Toggle Sprint",
-                };
-                return extra.map((key) => (
-                  <div className="mod-row" key={key}>
-                    <span>
-                      <span className="mod-row__name">{labels[key]}</span>
-                      <span className="mod-row__desc">{HUD_DESCRIPTIONS[key]}</span>
-                    </span>
-                    <Switch
-                      label={`${key} module`}
-                      checked={draft.hud[key].enabled}
-                      onChange={(v) => patchModule(key, { enabled: v })}
-                    />
-                  </div>
-                ));
-              })()}
+              <div className="mod-row">
+                <span>
+                  <span className="mod-row__name">Time Changer</span>
+                  <span className="mod-row__desc">{HUD_DESCRIPTIONS.timeChanger}</span>
+                </span>
+                <Switch
+                  label="Time Changer module"
+                  checked={draft.hud.timeChanger.enabled}
+                  disabled={!draft.hud.enabled}
+                  onChange={(v) => patchModule("timeChanger", { enabled: v })}
+                />
+              </div>
+
+              <div className="mod-row">
+                <span>
+                  <span className="mod-row__name">Toggle Sprint</span>
+                  <span className="mod-row__desc">{HUD_DESCRIPTIONS.toggleSprint}</span>
+                </span>
+                <Switch
+                  label="toggleSprint module"
+                  checked={draft.hud.toggleSprint.enabled}
+                  onChange={(v) => patchModule("toggleSprint", { enabled: v })}
+                />
+              </div>
 
               <div className="hud-settings">
                 <label className="field">

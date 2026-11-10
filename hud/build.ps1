@@ -82,6 +82,7 @@ try {
     $renderingJar = Join-Path $temp "fabric-rendering-v1.jar"
     $keyMappingJar = Join-Path $temp "fabric-key-mapping-api-v1.jar"
     $screenJar = Join-Path $temp "fabric-screen-api-v1.jar"
+    $lifecycleJar = Join-Path $temp "fabric-lifecycle-events-v1.jar"
     $apiBaseJar = Join-Path $temp "fabric-api-base.jar"
     $zip = [IO.Compression.ZipFile]::OpenRead($fabricApi)
     try {
@@ -110,6 +111,14 @@ try {
         [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $screenJar, $true)
 
         $entry = $zip.Entries |
+            Where-Object { $_.FullName -match '^META-INF/jars/fabric-lifecycle-events-v1-.*\.jar$' } |
+            Select-Object -First 1
+        if (-not $entry) {
+            throw "fabric-lifecycle-events-v1 module not found inside $fabricApi."
+        }
+        [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $lifecycleJar, $true)
+
+        $entry = $zip.Entries |
             Where-Object { $_.FullName -match '^META-INF/jars/fabric-api-base-.*\.jar$' } |
             Select-Object -First 1
         if (-not $entry) {
@@ -120,7 +129,7 @@ try {
         $zip.Dispose()
     }
 
-    $classpath = @($minecraftJar, $renderingJar, $keyMappingJar, $screenJar, $apiBaseJar) + $libraryJars
+    $classpath = @($minecraftJar, $renderingJar, $keyMappingJar, $screenJar, $lifecycleJar, $apiBaseJar) + $libraryJars
     if ($jomlJar -and $classpath -notcontains $jomlJar) {
         $classpath += $jomlJar
     }

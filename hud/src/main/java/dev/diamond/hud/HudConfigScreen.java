@@ -16,6 +16,7 @@ import java.util.Locale;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
+import java.util.function.DoubleFunction;
 import java.util.function.IntConsumer;
 
 /**
@@ -58,7 +59,9 @@ public final class HudConfigScreen extends Screen {
     public HudConfigScreen(Screen parent, Path configPath) {
         super(Component.literal("Diamond Client"));
         this.parent = parent;
-        this.config = new HudConfig(configPath);
+        // Share the live config so the Time Changer tick handler sees slider changes
+        // immediately instead of waiting for the next file poll.
+        this.config = DiamondHud.config();
         this.config.refresh();
         this.settings = config.get();
         this.previewRenderer = new HudRenderer(configPath);
@@ -269,9 +272,8 @@ public final class HudConfigScreen extends Screen {
                 addModuleRow(list, "ip", "IP Info", settings.ip);
                 addModuleRow(list, "armor", "Armor HUD", settings.armor);
                 addModuleRow(list, "fullbright", "Fullbright", settings.fullbright);
-                addModuleRow(list, "timeChanger", "Time Changer", settings.timeChanger);
+                addModuleRow(list, "timeChanger", "Time Changer", settings.timeChanger, this::openTimeChanger);
                 addModuleRow(list, "ping", "Ping", settings.ping);
-                addModuleRow(list, "toggleSneak", "Toggle Sneak", settings.toggleSneak);
                 addModuleRow(list, "toggleSprint", "Toggle Sprint", settings.toggleSprint);
             }
             case APPEARANCE -> {
@@ -312,12 +314,16 @@ public final class HudConfigScreen extends Screen {
     }
 
     private void addModuleRow(List<Row> list, String id, String name, HudConfig.Module mod) {
+        addModuleRow(list, id, name, mod, () -> openModuleEditor(id, name, mod));
+    }
+
+    private void addModuleRow(List<Row> list, String id, String name, HudConfig.Module mod, Runnable onOpen) {
         list.add(Row.toggle(id, name, mod.enabled,
                 () -> {
                     mod.enabled = !mod.enabled;
                     save();
                 },
-                () -> openModuleEditor(id, name, mod)));
+                onOpen));
     }
 
     // ------------------------------------------------------------------
@@ -588,17 +594,28 @@ public final class HudConfigScreen extends Screen {
         settings.ip = new HudConfig.Module(settings.ip.enabled, 0.015, 0.300);
         settings.armor = new HudConfig.Module(settings.armor.enabled, 0.850, 0.015);
         settings.fullbright = new HudConfig.Module(settings.fullbright.enabled, 0.850, 0.075);
-        settings.timeChanger = new HudConfig.Module(settings.timeChanger.enabled, 0.850, 0.135);
         settings.ping = new HudConfig.Module(settings.ping.enabled, 0.850, 0.200);
-        settings.toggleSneak = new HudConfig.Module(settings.toggleSneak.enabled, 0.850, 0.265);
-        settings.toggleSprint = new HudConfig.Module(settings.toggleSprint.enabled, 0.850, 0.330);
         save();
     }
 
     private void openNumber(String title, String hint, double current, double min, double max,
                             double step, String format, DoubleConsumer setter, double defaultValue) {
+        openNumber(title, hint, current, min, max, step, format, null, setter, defaultValue);
+    }
+
+    private void openNumber(String title, String hint, double current, double min, double max,
+                            double step, String format, DoubleFunction<String> display,
+                            DoubleConsumer setter, double defaultValue) {
         Minecraft.getInstance().gui.setScreen(
-                new NumberEditor(title, hint, current, min, max, step, format, setter, defaultValue));
+                new NumberEditor(title, hint, current, min, max, step, format, display, setter, defaultValue));
+    }
+
+    /** Time Changer opens the shared slider editor with a clock label instead of a text box. */
+    private void openTimeChanger() {
+        openNumber("Time Changer", "Drag the slider to change the client-side time of day.",
+                settings.timeChangerTime, 0, 23999, 100, "%.0f",
+                HudConfigScreen::formatTime,
+                v -> settings.timeChangerTime = (int) Math.round(v), 6000);
     }
 
     private void openColor(String title, String hint, int current, IntConsumer setter, int defaultValue) {
@@ -627,9 +644,7 @@ public final class HudConfigScreen extends Screen {
             case "ip" -> settings.ip;
             case "armor" -> settings.armor;
             case "fullbright" -> settings.fullbright;
-            case "timeChanger" -> settings.timeChanger;
             case "ping" -> settings.ping;
-            case "toggleSneak" -> settings.toggleSneak;
             case "toggleSprint" -> settings.toggleSprint;
             default -> settings.fps;
         };
@@ -767,6 +782,16 @@ public final class HudConfigScreen extends Screen {
         return String.format(Locale.ROOT, format, value);
     }
 
+    /**
+     * Formats overworld clock ticks as a 24-hour time. Tick 0 is sunrise (06:00),
+     * 6000 is noon, 12000 is sunset and 18000 is midnight.
+     */
+    private static String formatTime(double ticks) {
+        long time = Math.floorMod(Math.round(ticks), 24000L);
+        int minutes = (int) ((time * 1440L / 24000L + 360L) % 1440L);
+        return String.format(Locale.ROOT, "%02d:%02d", minutes / 60, minutes % 60);
+    }
+
     private static String hex(int color) {
         return String.format(Locale.ROOT, "#%06X", color & 0xFFFFFF);
     }
@@ -887,6 +912,7 @@ public final class HudConfigScreen extends Screen {
         private final double step;
         private final double defaultValue;
         private final String pattern;
+        private final DoubleFunction<String> display;
         private final DoubleConsumer setter;
         private double value;
         private EditBox input;
@@ -897,14 +923,25 @@ public final class HudConfigScreen extends Screen {
 
         NumberEditor(String heading, String hint, double current, double min, double max,
                      double step, String pattern, DoubleConsumer setter, double defaultValue) {
+            this(heading, hint, current, min, max, step, pattern, null, setter, defaultValue);
+        }
+
+        NumberEditor(String heading, String hint, double current, double min, double max,
+                     double step, String pattern, DoubleFunction<String> display,
+                     DoubleConsumer setter, double defaultValue) {
             super(heading, hint);
             this.min = min;
             this.max = max;
             this.step = step;
             this.pattern = pattern;
+            this.display = display;
             this.setter = setter;
             this.defaultValue = defaultValue;
             this.value = clamp(current, min, max);
+        }
+
+        private String label(double v) {
+            return display != null ? display.apply(v) : fmt(pattern, v);
         }
 
         @Override
@@ -914,20 +951,22 @@ public final class HudConfigScreen extends Screen {
 
         @Override
         protected void buildWidgets() {
-            input = new EditBox(font, panelX + 20, panelY + 54, panelW - 40, 20, Component.literal(heading));
-            input.setValue(fmt(pattern, value));
-            input.setResponder(s -> {
-                try {
-                    double v = Double.parseDouble(s.trim());
-                    if (v >= min && v <= max) {
-                        value = v;
-                        setter.accept(value);
-                        save();
+            if (display == null) {
+                input = new EditBox(font, panelX + 20, panelY + 54, panelW - 40, 20, Component.literal(heading));
+                input.setValue(fmt(pattern, value));
+                input.setResponder(s -> {
+                    try {
+                        double v = Double.parseDouble(s.trim());
+                        if (v >= min && v <= max) {
+                            value = v;
+                            setter.accept(value);
+                            save();
+                        }
+                    } catch (NumberFormatException ignored) {
                     }
-                } catch (NumberFormatException ignored) {
-                }
-            });
-            addRenderableWidget(input);
+                });
+                addRenderableWidget(input);
+            }
 
             addRenderableWidget(new MenuButton(panelX + 20, panelY + 84, 26, 20,
                     Component.literal("-"), b -> stepBy(-step), false));
@@ -982,13 +1021,16 @@ public final class HudConfigScreen extends Screen {
         @Override
         public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
             super.extractRenderState(g, mouseX, mouseY, partialTick);
+            if (display != null) {
+                g.centeredText(font, display.apply(value), panelX + panelW / 2, panelY + 58, TEXT);
+            }
             g.fill(trackX, trackY, trackX + trackW, trackY + 3, 0xFF33363B);
             int fillW = (int) Math.round((value - min) / (max - min) * trackW);
             g.fill(trackX, trackY, trackX + fillW, trackY + 3, ACCENT);
             int knobX = trackX + fillW;
             g.fill(knobX - 3, trackY - 4, knobX + 3, trackY + 7, 0xFFE6EEF0);
-            g.text(font, fmt(pattern, min), trackX, trackY + 8, TEXT_FAINT, false);
-            String maxText = fmt(pattern, max);
+            g.text(font, label(min), trackX, trackY + 8, TEXT_FAINT, false);
+            String maxText = label(max);
             g.text(font, maxText, trackX + trackW - font.width(maxText), trackY + 8, TEXT_FAINT, false);
         }
 
