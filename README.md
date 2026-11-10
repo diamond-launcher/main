@@ -4,6 +4,8 @@ A minimalist Minecraft launcher: pick a version, install, press Play. Built with
 
 Offline profile only: there is **no** Microsoft/Xbox authentication and no ownership verification. The launcher passes a locally stored username and a deterministic offline UUID.
 
+Some servers still ask the client to authenticate, or protect premium names, even when they accept offline players. Those reject an offline profile with `Invalid session` (or `You cannot join the server`). That is a server-side policy and cannot be worked around without a real Microsoft account: use an offline-mode server or pick a different player name.
+
 ## Run
 
 ```
@@ -46,7 +48,7 @@ Events: `install-progress` (phase: metadata, java, verify, download, finalize, d
 
 Data lives in `%APPDATA%\Diamond` (`settings.json`, manifest cache) and, by default, `%APPDATA%\Diamond\minecraft` (standard `versions/ libraries/ assets/ runtime/` layout). Both game dir and Java are overridable in Settings.
 
-Design rules: no version-specific launch arguments (everything comes from version JSON rules; legacy `minecraftArguments` gets only the universal `-Djava.library.path`/`-cp`); progress is only shown from real byte counts, other phases are indeterminate.
+Design rules: launch arguments come from version JSON rules (legacy `minecraftArguments` gets only the universal `-Djava.library.path`/`-cp`), with one exception: `--offlineDeveloperMode` is added when the client jar declares it, because 26.2+ uses that flag instead of `--userType` to select the offline user API. Progress is only shown from real byte counts, other phases are indeterminate.
 
 Error codes returned to the UI (`AppError.code`): `network`, `checksum`, `not_installed`, `java_missing`, `java_too_old`, `mods_outdated`, `invalid_*`, `busy`, `launch_failed`, ... The UI auto-repairs on `not_installed`/`java_missing`/`mods_outdated` when pressing Play.
 
@@ -101,7 +103,7 @@ The update flow: the launcher checks GitHub about 4 seconds after start and ever
 
 ## Status
 
-Done and verified (33 unit tests; real install + launch of 1.8.9 and 1.21.4; release build runs and shows the live version list):
+Done and verified (36 unit tests; real install + launch of 1.8.9, 1.21.4 and 26.2, including a real offline-mode server join on 26.2; release build runs and shows the live version list):
 
 1. Shell and project structure
 2. Visual interface (main screen, version picker, settings drawer, progress, errors)

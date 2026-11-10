@@ -259,7 +259,10 @@ export function SettingsPanel({ settings, system, catalog, modsState, busy, canV
                   spellCheck={false}
                   onChange={(e) => patch({ username: e.target.value })}
                 />
-                <span className="field__hint">Offline profile stored on this computer. Not a Microsoft account.</span>
+                <span className="field__hint">
+                  Offline profile stored on this computer. Not a Microsoft account, so servers that verify premium
+                  sessions will show "Invalid session" — use an offline-mode server or a different name.
+                </span>
               </label>
 
               <div className="field">

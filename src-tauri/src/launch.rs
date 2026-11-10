@@ -101,6 +101,28 @@ fn expand(args: &[Argument], env: &Env) -> Vec<String> {
     out
 }
 
+/// Minecraft 26.2 removed `--userType` and replaced it with `--offlineDeveloperMode`.
+///
+/// The flag is what makes the client select `UserApiService.OFFLINE`,
+/// `EMPTY_KEY_MANAGER` and an offline auth service instead of treating the
+/// placeholder access token as a real Microsoft session (which produces 401s
+/// against `/player/attributes`, `/player/certificates` and Realms).
+///
+/// Older versions reject unknown options, so the flag is only added when the
+/// client's `Main` class actually declares it.
+fn supports_offline_developer_mode(jar: &std::path::Path) -> bool {
+    use std::io::Read;
+    const NEEDLE: &[u8] = b"offlineDeveloperMode";
+    let Ok(file) = fs::File::open(jar) else { return false };
+    let Ok(mut archive) = zip::ZipArchive::new(file) else { return false };
+    let Ok(mut class) = archive.by_name("net/minecraft/client/main/Main.class") else { return false };
+    let mut bytes = Vec::new();
+    if class.read_to_end(&mut bytes).is_err() {
+        return false;
+    }
+    bytes.windows(NEEDLE.len()).any(|w| w == NEEDLE)
+}
+
 pub struct LaunchInputs<'a> {
     pub meta: &'a VersionMeta,
     pub index: &'a AssetIndex,
@@ -184,7 +206,15 @@ pub fn build_args(i: &LaunchInputs) -> Vec<String> {
     }
     args.extend(jvm_template.iter().map(|a| substitute(a, &vars)));
     args.push(meta.main_class.clone());
-    args.extend(game_template.iter().map(|a| substitute(a, &vars)));
+    let mut game_args: Vec<String> = game_template.iter().map(|a| substitute(a, &vars)).collect();
+
+    // Genuine offline session for 26.2+: no Mojang user API, no profile key fetch.
+    let client_jar = i.paths.version_jar(&meta.id);
+    if !game_args.iter().any(|a| a == "--offlineDeveloperMode") && supports_offline_developer_mode(&client_jar) {
+        game_args.push("--offlineDeveloperMode".into());
+    }
+
+    args.extend(game_args);
     args
 }
 
@@ -522,13 +552,16 @@ mod tests {
     }
 
     fn build(meta: &VersionMeta, index: &AssetIndex) -> Vec<String> {
+        build_with_paths(meta, index, &GamePaths::new("/game"))
+    }
+
+    fn build_with_paths(meta: &VersionMeta, index: &AssetIndex, paths: &GamePaths) -> Vec<String> {
         let env = Env { os: "windows", arch: "x86_64", os_version: "10.0".into() };
-        let paths = GamePaths::new("/game");
         let settings = Settings { username: "Steve".into(), jvm_args: "-Dx=1".into(), ..Settings::default() };
         build_args(&LaunchInputs {
             meta,
             index,
-            paths: &paths,
+            paths,
             settings: &settings,
             classpath: &[PathBuf::from("/game/libraries/a.jar")],
             mods_dir: None,
@@ -536,6 +569,73 @@ mod tests {
             env: &env,
             max_ram_mb: 2048,
         })
+    }
+
+    /// Writes a fake client jar whose `Main.class` contains the given bytes.
+    fn client_jar(root: &std::path::Path, id: &str, main_class: &[u8]) -> GamePaths {
+        use std::io::Write;
+        let paths = GamePaths::new(root);
+        let jar = paths.version_jar(id);
+        std::fs::create_dir_all(jar.parent().unwrap()).unwrap();
+        let mut zip = zip::ZipWriter::new(std::fs::File::create(&jar).unwrap());
+        zip.start_file("net/minecraft/client/main/Main.class", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        zip.write_all(main_class).unwrap();
+        zip.finish().unwrap();
+        paths
+    }
+
+    #[test]
+    fn offline_developer_mode_is_passed_to_modern_clients() {
+        let root = std::env::temp_dir().join(format!("diamond-launch-test-{}", std::process::id()));
+        let paths = client_jar(&root, "26.2", b"prefix-offlineDeveloperMode-suffix");
+        let meta = fixture(
+            r#"{"id":"26.2","type":"release","mainClass":"net.minecraft.client.main.Main",
+            "assetIndex":{"id":"32","url":"u"},
+            "arguments":{"jvm":["-cp","${classpath}"],
+              "game":["--username","${auth_player_name}","--accessToken","${auth_access_token}"]}}"#,
+        );
+        let args = build_with_paths(&meta, &empty_index(), &paths);
+        assert_eq!(args.iter().filter(|a| *a == "--offlineDeveloperMode").count(), 1);
+        // Still a purely offline session: no real token, deterministic offline UUID.
+        assert!(args.windows(2).any(|w| w == ["--accessToken", "0"]));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn offline_developer_mode_is_not_passed_to_legacy_clients() {
+        let root = std::env::temp_dir().join(format!("diamond-launch-test-legacy-{}", std::process::id()));
+        let paths = client_jar(&root, "1.8.9", b"just a normal Main class");
+        let meta = fixture(
+            r#"{"id":"1.8.9","type":"release","mainClass":"net.minecraft.client.main.Main",
+            "assetIndex":{"id":"1.8","url":"u"},
+            "minecraftArguments":"--username ${auth_player_name} --accessToken ${auth_access_token} --userType ${user_type}"}"#,
+        );
+        let args = build_with_paths(&meta, &empty_index(), &paths);
+        assert!(!args.iter().any(|a| a == "--offlineDeveloperMode"));
+        // Legacy clients select the offline user API through --userType.
+        assert!(args.windows(2).any(|w| w == ["--userType", "legacy"]));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn offline_developer_mode_is_not_duplicated() {
+        let root = std::env::temp_dir().join(format!("diamond-launch-test-dup-{}", std::process::id()));
+        let paths = client_jar(&root, "26.2", b"offlineDeveloperMode");
+        let meta = fixture(
+            r#"{"id":"26.2","type":"release","mainClass":"net.minecraft.client.main.Main",
+            "assetIndex":{"id":"32","url":"u"},
+            "arguments":{"jvm":["-cp","${classpath}"],
+              "game":["--offlineDeveloperMode","--username","${auth_player_name}"]}}"#,
+        );
+        let args = build_with_paths(&meta, &empty_index(), &paths);
+        assert_eq!(args.iter().filter(|a| *a == "--offlineDeveloperMode").count(), 1);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn offline_developer_mode_detection_requires_client_jar() {
+        assert!(!supports_offline_developer_mode(std::path::Path::new("/definitely/missing/client.jar")));
     }
 
     fn empty_index() -> AssetIndex {

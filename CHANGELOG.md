@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.4] - 2026-11-11
+
+### Fixed
+- **"Invalid session" when joining offline-mode servers on Minecraft 26.2/26.3.** Minecraft 26.2 removed `--userType` and selects its offline user service with `--offlineDeveloperMode`. Without that flag the client treated the placeholder access token as a Microsoft session: `/player/attributes` and `/player/certificates` returned 401, Realms logged `Failed to parse into SignedJWT: 0`, and the profile key pair manager tried to upload a key. The launcher now passes the flag, so the client uses `UserApiService.OFFLINE`, `EMPTY_KEY_MANAGER` and an offline authentication service: no Mojang account calls, and multiplayer stays enabled.
+- The flag is only added when the client jar actually declares the option, so 1.21.4 and older keep using `--userType legacy` and are never given an argument they would reject.
+
+### Verified
+- Real server test on 26.2 + Fabric (`msc.pika.host`): a fresh offline name connected, received the server's registration prompt, and the 401 / Realms / key-pair errors no longer appear in the log.
+
+### Known limitation
+- Servers that request authentication even in offline mode (premium name protection, e.g. `origin3l` on `msc.pika.host`) still answer with "Invalid session". The launcher has no Microsoft login, so use another player name or an offline-mode server.
+
 ## [0.6.3] - 2026-11-11
 
 ### Added
