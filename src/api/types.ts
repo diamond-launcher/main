@@ -38,6 +38,10 @@ export interface HudSettings {
   accent: string;
   /** #rrggbb */
   textColor: string;
+  /** GLFW key code that opens the in-game HUD editor. */
+  keybind: number;
+  /** 0..3 */
+  cornerRadius: number;
   fps: HudModule;
   cps: HudModule;
   keystrokes: HudModule;
@@ -46,10 +50,10 @@ export interface HudSettings {
   ip: HudModule;
   armor: HudModule;
   fullbright: HudModule;
-  time_changer: HudModule;
+  timeChanger: HudModule;
   ping: HudModule;
-  toggle_sneak: HudModule;
-  toggle_sprint: HudModule;
+  toggleSneak: HudModule;
+  toggleSprint: HudModule;
 }
 
 export interface Settings {

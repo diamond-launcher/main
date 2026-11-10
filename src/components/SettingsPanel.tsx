@@ -22,8 +22,10 @@ const HUD_MODULES = [
   ["day", "Day Counter"],
   ["ip", "IP Info"],
   ["armor", "Armor HUD"],
+  ["timeChanger", "Time Changer"],
+  ["ping", "Ping"],
 ] as const;
-type HudKey = (typeof HUD_MODULES)[number][0] | "fullbright" | "time_changer" | "ping" | "toggle_sneak" | "toggle_sprint";
+type HudKey = (typeof HUD_MODULES)[number][0] | "fullbright" | "toggleSneak" | "toggleSprint";
 
 const HUD_DEFAULT_POS: Record<HudKey, { x: number; y: number }> = {
   fps: { x: 0.012, y: 0.012 },
@@ -34,10 +36,10 @@ const HUD_DEFAULT_POS: Record<HudKey, { x: number; y: number }> = {
   ip: { x: 0.012, y: 0.3 },
   armor: { x: 0.85, y: 0.012 },
   fullbright: { x: 0.85, y: 0.075 },
-  time_changer: { x: 0.85, y: 0.135 },
+  timeChanger: { x: 0.85, y: 0.135 },
   ping: { x: 0.85, y: 0.2 },
-  toggle_sneak: { x: 0.85, y: 0.265 },
-  toggle_sprint: { x: 0.85, y: 0.33 },
+  toggleSneak: { x: 0.85, y: 0.265 },
+  toggleSprint: { x: 0.85, y: 0.33 },
 };
 
 const HUD_DESCRIPTIONS: Record<HudKey, string> = {
@@ -49,11 +51,37 @@ const HUD_DESCRIPTIONS: Record<HudKey, string> = {
   ip: "Connected server address.",
   armor: "Equipped armor with durability.",
   fullbright: "Rendering-level brightness; enable/disable only.",
-  time_changer: "Client-side time of day override. Does not affect the server or other players.",
+  timeChanger: "Client-side time of day override. Does not affect the server or other players.",
   ping: "Shows your current server ping in milliseconds.",
-  toggle_sneak: "Toggle sneak on/off with Shift instead of holding it.",
-  toggle_sprint: "Toggle sprint on/off with the sprint key instead of holding it.",
+  toggleSneak: "Toggle sneak on/off with Shift instead of holding it.",
+  toggleSprint: "Toggle sprint on/off with the sprint key instead of holding it.",
 };
+
+const HUD_KEYS: HudKey[] = [...HUD_MODULES.map(([key]) => key), "fullbright", "toggleSneak", "toggleSprint"];
+
+/**
+ * The backend serializes HUD modules in camelCase. A partial or outdated settings
+ * file can leave a module object missing, so merge every known module with safe
+ * defaults before the UI reads `.enabled` / `.x` / `.y`.
+ */
+function normalizeHud(hud: HudSettings | undefined): HudSettings {
+  const source: Partial<HudSettings> = hud ?? {};
+  const next = {
+    enabled: true,
+    scale: 1,
+    backgroundOpacity: 0.55,
+    accent: "#6ee7f0",
+    textColor: "#e8f0f2",
+    keybind: 344,
+    cornerRadius: 3,
+    ...source,
+  } as HudSettings;
+  for (const key of HUD_KEYS) {
+    const fallback: HudModule = { enabled: false, ...HUD_DEFAULT_POS[key] };
+    next[key] = { ...fallback, ...(source[key] ?? {}) };
+  }
+  return next;
+}
 
 function Switch({
   checked,
@@ -99,7 +127,7 @@ async function browse(directory: boolean): Promise<string | null> {
 
 export function SettingsPanel({ settings, system, catalog, modsState, busy, canVerify, onSave, onVerify, onClose, onClearModState }: Props) {
   const [tab, setTab] = useState<Tab>("general");
-  const [draft, setDraft] = useState<Settings>(settings);
+  const [draft, setDraft] = useState<Settings>(() => ({ ...settings, hud: normalizeHud(settings.hud) }));
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -166,10 +194,10 @@ export function SettingsPanel({ settings, system, catalog, modsState, busy, canV
       ip: { ...draft.hud.ip, ...HUD_DEFAULT_POS.ip },
       armor: { ...draft.hud.armor, ...HUD_DEFAULT_POS.armor },
       fullbright: { ...draft.hud.fullbright, ...HUD_DEFAULT_POS.fullbright },
-      time_changer: { ...draft.hud.time_changer, ...HUD_DEFAULT_POS.time_changer },
+      timeChanger: { ...draft.hud.timeChanger, ...HUD_DEFAULT_POS.timeChanger },
       ping: { ...draft.hud.ping, ...HUD_DEFAULT_POS.ping },
-      toggle_sneak: { ...draft.hud.toggle_sneak, ...HUD_DEFAULT_POS.toggle_sneak },
-      toggle_sprint: { ...draft.hud.toggle_sprint, ...HUD_DEFAULT_POS.toggle_sprint },
+      toggleSneak: { ...draft.hud.toggleSneak, ...HUD_DEFAULT_POS.toggleSneak },
+      toggleSprint: { ...draft.hud.toggleSprint, ...HUD_DEFAULT_POS.toggleSprint },
     });
 
   const autoRam = draft.maxRamMb === null;
@@ -451,13 +479,15 @@ export function SettingsPanel({ settings, system, catalog, modsState, busy, canV
               </div>
 
               {(() => {
-                const extra: HudKey[] = ["time_changer", "ping", "toggle_sneak", "toggle_sprint"];
+                const extra: HudKey[] = ["toggleSneak", "toggleSprint"];
+                const labels: Record<string, string> = {
+                  toggleSneak: "Toggle Sneak",
+                  toggleSprint: "Toggle Sprint",
+                };
                 return extra.map((key) => (
                   <div className="mod-row" key={key}>
                     <span>
-                      <span className="mod-row__name">
-                        {key === "time_changer" ? "Time Changer" : key === "ping" ? "Ping" : key === "toggle_sneak" ? "Toggle Sneak" : "Toggle Sprint"}
-                      </span>
+                      <span className="mod-row__name">{labels[key]}</span>
                       <span className="mod-row__desc">{HUD_DESCRIPTIONS[key]}</span>
                     </span>
                     <Switch

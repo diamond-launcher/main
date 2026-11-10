@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1] - 2026-11-10
+
+### Fixed
+- **Settings > HUD could not be opened and made the launcher unresponsive.** The 0.6.0 HUD modules were saved by the backend in camelCase (`timeChanger`, `toggleSneak`, `toggleSprint`) but the settings panel read snake_case (`time_changer`, `toggle_sneak`, `toggle_sprint`). Reading `.enabled` from the missing object threw during render and unmounted the whole React app. The panel now uses the backend's camelCase keys.
+- HUD settings are now normalized against defaults before rendering, so a settings file from an older version (or one missing a module) can no longer crash the HUD tab.
+- Layout editor: Time Changer and Ping now appear as draggable preview chips, matching the modules rendered in-game.
+
 ## [0.6.0] - 2026-11-10
 
 ### Added
