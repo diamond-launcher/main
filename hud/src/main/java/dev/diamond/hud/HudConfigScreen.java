@@ -43,7 +43,7 @@ public final class HudConfigScreen extends Screen {
     private static final int ROW_GAP = 6;
     private static final int SWITCH_W = 32;
     private static final int SWITCH_H = 16;
-    private static final String VERSION = "1.1.0";
+    private static final String VERSION = "1.2.0";
 
     private final Screen parent;
     private final HudConfig config;
@@ -594,7 +594,9 @@ public final class HudConfigScreen extends Screen {
         settings.ip = new HudConfig.Module(settings.ip.enabled, 0.015, 0.300);
         settings.armor = new HudConfig.Module(settings.armor.enabled, 0.850, 0.015);
         settings.fullbright = new HudConfig.Module(settings.fullbright.enabled, 0.850, 0.075);
+        settings.timeChanger = new HudConfig.Module(settings.timeChanger.enabled, 0.850, 0.135);
         settings.ping = new HudConfig.Module(settings.ping.enabled, 0.850, 0.200);
+        settings.toggleSprint = new HudConfig.Module(settings.toggleSprint.enabled, 0.850, 0.265);
         save();
     }
 
@@ -612,10 +614,16 @@ public final class HudConfigScreen extends Screen {
 
     /** Time Changer opens the shared slider editor with a clock label instead of a text box. */
     private void openTimeChanger() {
-        openNumber("Time Changer", "Drag the slider to change the client-side time of day.",
+        openNumber("Time Changer", "Drag to set the client-side time. Moving the slider turns the module on; "
+                        + "turn Time Changer off to return to the server time.",
                 settings.timeChangerTime, 0, 23999, 100, "%.0f",
                 HudConfigScreen::formatTime,
-                v -> settings.timeChangerTime = (int) Math.round(v), 6000);
+                v -> {
+                    settings.timeChangerTime = (int) Math.round(v);
+                    // A slider that changes nothing is confusing: enabling on drag makes
+                    // the new time apply on the very next frame.
+                    settings.timeChanger.enabled = true;
+                }, 6000);
     }
 
     private void openColor(String title, String hint, int current, IntConsumer setter, int defaultValue) {

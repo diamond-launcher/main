@@ -49,9 +49,9 @@ const HUD_DESCRIPTIONS: Record<HudKey, string> = {
   ip: "Connected server address.",
   armor: "Equipped armor with durability.",
   fullbright: "Rendering-level brightness; enable/disable only.",
-  timeChanger: "Client-side time of day override. Set the time from the Modules tab in-game.",
+  timeChanger: "Client-side time of day override. Set the time from the Modules tab in-game; moving the slider turns it on.",
   ping: "Shows your current server ping in milliseconds.",
-  toggleSprint: "Toggle sprint on/off with the sprint key instead of holding it.",
+  toggleSprint: "Sprint key locks sprint on/off. While locked, the HUD shows [Sprint (Toggled)].",
 };
 
 const HUD_KEYS: HudKey[] = [...HUD_MODULES.map(([key]) => key), "fullbright", "timeChanger", "toggleSprint"];
@@ -195,7 +195,9 @@ export function SettingsPanel({ settings, system, catalog, modsState, busy, canV
       ip: { ...draft.hud.ip, ...HUD_DEFAULT_POS.ip },
       armor: { ...draft.hud.armor, ...HUD_DEFAULT_POS.armor },
       fullbright: { ...draft.hud.fullbright, ...HUD_DEFAULT_POS.fullbright },
+      timeChanger: { ...draft.hud.timeChanger, ...HUD_DEFAULT_POS.timeChanger },
       ping: { ...draft.hud.ping, ...HUD_DEFAULT_POS.ping },
+      toggleSprint: { ...draft.hud.toggleSprint, ...HUD_DEFAULT_POS.toggleSprint },
     });
 
   const autoRam = draft.maxRamMb === null;

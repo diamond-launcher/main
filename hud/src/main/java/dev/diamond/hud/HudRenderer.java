@@ -29,10 +29,13 @@ public final class HudRenderer implements HudElement {
     public static final String IP = "ip";
     public static final String ARMOR = "armor";
     public static final String PING = "ping";
-    // TOGGLE_SPRINT is a behavior toggle, not a visual HUD module
+    /** Sprint lock indicator; also drives the toggle-sprint behavior. */
     public static final String TOGGLE_SPRINT = "toggleSprint";
     // FULLBRIGHT is not a HUD module - it's a background gamma toggle
-    public static final String[] TYPES = {FPS, CPS, KEYSTROKES, COORDS, DAY, IP, ARMOR, PING};
+    public static final String[] TYPES = {FPS, CPS, KEYSTROKES, COORDS, DAY, IP, ARMOR, PING, TOGGLE_SPRINT};
+
+    /** Exact status text shown while the sprint toggle is locked on. */
+    private static final String SPRINT_TOGGLED = "[Sprint (Toggled)]";
 
     private final HudConfig config;
     private final ArrayDeque<Long> leftClicks = new ArrayDeque<>();
@@ -42,6 +45,8 @@ public final class HudRenderer implements HudElement {
     /** Toggle sprint state: true when sprint is locked on. */
     private boolean sprintToggleState;
     private boolean sprintKeyWasDown;
+    /** Player the current toggle state belongs to; resets on respawn or dimension change. */
+    private net.minecraft.client.player.LocalPlayer sprintPlayer;
 
     HudRenderer(Path configPath) {
         this.config = new HudConfig(configPath);
@@ -64,6 +69,8 @@ public final class HudRenderer implements HudElement {
         }
 
         updateClicks(mc);
+        // Update the toggle state before drawing so the status text never lags a frame.
+        applyToggleSprint(settings);
         float w = graphics.guiWidth();
         float h = graphics.guiHeight();
         drawModuleAt(graphics, FPS, settings, settings.fps, mc, (float) (settings.fps.x * w), (float) (settings.fps.y * h), 1.0f);
@@ -75,9 +82,8 @@ public final class HudRenderer implements HudElement {
         drawModuleAt(graphics, IP, settings, settings.ip, mc, (float) (settings.ip.x * w), (float) (settings.ip.y * h), 1.0f);
         drawModuleAt(graphics, ARMOR, settings, settings.armor, mc, (float) (settings.armor.x * w), (float) (settings.armor.y * h), 1.0f);
         drawModuleAt(graphics, PING, settings, settings.ping, mc, (float) (settings.ping.x * w), (float) (settings.ping.y * h), 1.0f);
-
-        // Apply toggle sprint behavior each frame.
-        applyToggleSprint(settings);
+        drawModuleAt(graphics, TOGGLE_SPRINT, settings, settings.toggleSprint, mc,
+                (float) (settings.toggleSprint.x * w), (float) (settings.toggleSprint.y * h), 1.0f);
     }
 
     /**
@@ -103,6 +109,11 @@ public final class HudRenderer implements HudElement {
         if (!module.enabled) {
             return;
         }
+        // The sprint indicator is only visible while the toggle is locked on. The
+        // layout preview (mc == null) always draws it so its position stays editable.
+        if (TOGGLE_SPRINT.equals(type) && mc != null && !sprintToggleState) {
+            return;
+        }
         g.pose().pushMatrix();
         g.pose().translate(x, y);
         float scale = c.scale * extraScale;
@@ -118,6 +129,7 @@ public final class HudRenderer implements HudElement {
             case IP -> ipContent(g, c, mc);
             case PING -> pingContent(g, c, mc);
             case ARMOR -> armorContent(g, c, mc);
+            case TOGGLE_SPRINT -> toggleSprintContent(g, c, mc);
             default -> { }
         }
         g.pose().popMatrix();
@@ -162,6 +174,10 @@ public final class HudRenderer implements HudElement {
             }
             case PING -> {
                 width = textWidth(font, "PING", pingValue(mc));
+                height = textHeight(font, 1);
+            }
+            case TOGGLE_SPRINT -> {
+                width = textWidth(font, SPRINT_TOGGLED);
                 height = textHeight(font, 1);
             }
             case ARMOR -> {
@@ -262,6 +278,21 @@ public final class HudRenderer implements HudElement {
         int textY = PAD;
         g.text(font, "PING", PAD, textY, c.accent, false);
         g.text(font, value, PAD + font.width("PING") + 5, textY, c.text, false);
+    }
+
+    /**
+     * Sprint lock indicator, drawn in the same panel style as the other modules.
+     *
+     * <p>Only the exact status text is rendered, so the HUD matches the expected
+     * {@code [Sprint (Toggled)]} format without extra labels or decoration.</p>
+     */
+    private void toggleSprintContent(GuiGraphicsExtractor g, HudConfig.Settings c, Minecraft mc) {
+        Font font = font(mc);
+        int width = textWidth(font, SPRINT_TOGGLED);
+        int height = textHeight(font, 1);
+
+        panel(g, width, height, c);
+        g.text(font, SPRINT_TOGGLED, PAD, PAD, c.accent, false);
     }
 
     /** Armor HUD module content. */
@@ -523,6 +554,10 @@ public final class HudRenderer implements HudElement {
         return PAD + font.width(label) + 5 + font.width(value) + PAD;
     }
 
+    private static int textWidth(Font font, String text) {
+        return PAD + font.width(text) + PAD;
+    }
+
     private static int textHeight(Font font, int lines) {
         return PAD + font.lineHeight * lines + GAP * (lines - 1) + PAD;
     }
@@ -556,12 +591,20 @@ public final class HudRenderer implements HudElement {
 
     /** Toggle sprint: press Sprint key once to lock sprint on/off. */
     private void applyToggleSprint(HudConfig.Settings c) {
-        if (!c.toggleSprint.enabled) {
-            return;
-        }
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null || mc.options == null) {
+            resetSprintToggle();
             return;
+        }
+        if (!c.toggleSprint.enabled) {
+            // Turning the module off restores plain vanilla sprint behavior.
+            resetSprintToggle();
+            return;
+        }
+        if (mc.player != sprintPlayer) {
+            sprintPlayer = mc.player;
+            sprintToggleState = false;
+            sprintKeyWasDown = false;
         }
         boolean down = mc.options.keySprint.isDown();
         if (down && !sprintKeyWasDown) {
@@ -571,5 +614,11 @@ public final class HudRenderer implements HudElement {
         if (sprintToggleState) {
             mc.player.setSprinting(true);
         }
+    }
+
+    private void resetSprintToggle() {
+        sprintToggleState = false;
+        sprintKeyWasDown = false;
+        sprintPlayer = null;
     }
 }

@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.6.3] - 2026-11-11
+
+### Added
+- **Toggle Sprint now has a HUD indicator.** While sprint is locked on, the HUD shows `[Sprint (Toggled)]` in the standard module style (semi-transparent black panel, accent text, no new decoration). It updates the moment the toggle changes and its position is stored in `toggleSprint.x/y`, so it can be dragged in the HUD Layout editor like every other module.
+- The launcher's HUD preview lists the new indicator and the layout reset also restores the Time Changer, Ping and Toggle Sprint positions.
+
+### Fixed
+- **Time Changer: the slider appeared to do nothing.** The slider only changed the stored time, so unless the module's own switch had been turned on first, the world never changed. Moving the slider now enables Time Changer immediately, and the editor hint explains that turning it off restores the server time.
+- Time Changer no longer depends on the HUD overlay master switch: it is a client-side world setting and draws nothing, so it keeps working even when the overlay itself is hidden.
+- In-game HUD changes to Fullbright, Ping and Toggle Sprint are now preserved by the launcher's pre-launch config merge instead of being reset from `settings.json`.
+
+### Verified
+- In-game visual test: at `timeChangerTime=18000` the sky is night with stars, switching to `6000` while the game runs turns the world to bright noon, and the day counter keeps running (`DAY 2`). Nothing is sent to the server.
+- `[Sprint (Toggled)]` was confirmed on screen after pressing the sprint key.
+
 ## [0.6.2] - 2026-11-11
 
 ### Changed

@@ -79,6 +79,15 @@ pub fn write_config(paths: &GamePaths, hud: &HudSettings) -> Result<PathBuf> {
                     merged.time_changer.x = ingame_hud.time_changer.x;
                     merged.time_changer.y = ingame_hud.time_changer.y;
                     merged.time_changer_time = ingame_hud.time_changer_time;
+                    merged.fullbright.enabled = ingame_hud.fullbright.enabled;
+                    merged.fullbright.x = ingame_hud.fullbright.x;
+                    merged.fullbright.y = ingame_hud.fullbright.y;
+                    merged.ping.enabled = ingame_hud.ping.enabled;
+                    merged.ping.x = ingame_hud.ping.x;
+                    merged.ping.y = ingame_hud.ping.y;
+                    merged.toggle_sprint.enabled = ingame_hud.toggle_sprint.enabled;
+                    merged.toggle_sprint.x = ingame_hud.toggle_sprint.x;
+                    merged.toggle_sprint.y = ingame_hud.toggle_sprint.y;
                     // Write merged config
                     let tmp = file.with_extension("properties.tmp");
                     std::fs::write(&tmp, properties(&merged))?;

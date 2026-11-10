@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "id": "diamondhud",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "name": "Diamond HUD",
-  "description": "Customizable FPS, CPS, keystrokes and coordinates overlay for Diamond Launcher.",
+  "description": "Customizable FPS, CPS, keystrokes, coordinates, time changer and sprint toggle overlay for Diamond Launcher.",
   "authors": ["Diamond Launcher"],
   "license": "MIT",
   "environment": "client",

@@ -72,7 +72,7 @@ final class TimeChanger {
             clock = null;
             applied = false;
         }
-        if (!settings.enabled || !settings.timeChanger.enabled) {
+        if (!settings.timeChanger.enabled) {
             return;
         }
         Holder<WorldClock> holder = clock(current);
