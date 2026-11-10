@@ -110,6 +110,10 @@ fn properties(hud: &HudSettings) -> String {
     module(&mut out, "ip", &hud.ip);
     module(&mut out, "armor", &hud.armor);
     module(&mut out, "fullbright", &hud.fullbright);
+    module(&mut out, "timeChanger", &hud.time_changer);
+    module(&mut out, "ping", &hud.ping);
+    module(&mut out, "toggleSneak", &hud.toggle_sneak);
+    module(&mut out, "toggleSprint", &hud.toggle_sprint);
     out
 }
 
@@ -201,6 +205,10 @@ fn parse_ingame(text: &str) -> Option<HudSettings> {
         ip: module("ip", default.ip.clone()),
         armor: module("armor", default.armor.clone()),
         fullbright: module("fullbright", default.fullbright.clone()),
+        time_changer: module("timeChanger", default.time_changer.clone()),
+        ping: module("ping", default.ping.clone()),
+        toggle_sneak: module("toggleSneak", default.toggle_sneak.clone()),
+        toggle_sprint: module("toggleSprint", default.toggle_sprint.clone()),
     })
 }
 
@@ -262,14 +270,14 @@ mod tests {
         let file = config_path(&dir);
 
         let text = format!(
-            "#{INGAME_MARKER}\nkeybind=75\nscale=1.500\ncornerRadius=12\nfps.x=0.4000\nfps.y=0.5000\n"
+            "#{INGAME_MARKER}\nkeybind=75\nscale=1.500\ncornerRadius=2\nfps.x=0.4000\nfps.y=0.5000\n"
         );
         std::fs::write(&file, text).unwrap();
 
         assert!(import_ingame(&mut settings));
         assert_eq!(settings.hud.keybind, 75);
         assert_eq!(settings.hud.scale, 1.5);
-        assert_eq!(settings.hud.corner_radius, 12);
+        assert_eq!(settings.hud.corner_radius, 2);
         assert!((settings.hud.fps.x - 0.4).abs() < 1e-6);
 
         // A file written by the launcher must not override the saved settings.

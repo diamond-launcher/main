@@ -45,6 +45,14 @@ final class HudConfig {
         Module ip;
         Module armor;
         Module fullbright;
+        /// Client-side time of day override (0..24000 ticks).
+        Module timeChanger;
+        /// Shows the player's current server ping.
+        Module ping;
+        /// Toggle sneak behavior (hold vs toggle).
+        Module toggleSneak;
+        /// Toggle sprint behavior (hold vs toggle).
+        Module toggleSprint;
 
         static Settings defaults() {
             Settings s = new Settings();
@@ -54,7 +62,7 @@ final class HudConfig {
             s.accent = 0xFF6EE7F0;
             s.text = 0xFFE8F0F2;
             s.keybind = 344; // GLFW_KEY_RIGHT_SHIFT
-            s.cornerRadius = 4;
+            s.cornerRadius = 3;
             // Spread out defaults so they don't overlap
             s.fps = new Module(true, 0.015, 0.015);
             s.cps = new Module(true, 0.015, 0.075);
@@ -64,6 +72,10 @@ final class HudConfig {
             s.ip = new Module(true, 0.015, 0.300);
             s.armor = new Module(true, 0.850, 0.015);
             s.fullbright = new Module(false, 0.850, 0.075);
+            s.timeChanger = new Module(false, 0.850, 0.135);
+            s.ping = new Module(false, 0.850, 0.200);
+            s.toggleSneak = new Module(false, 0.850, 0.265);
+            s.toggleSprint = new Module(false, 0.850, 0.330);
             return s;
         }
     }
@@ -124,6 +136,10 @@ final class HudConfig {
         writeModule(properties, "ip", s.ip);
         writeModule(properties, "armor", s.armor);
         writeModule(properties, "fullbright", s.fullbright);
+        writeModule(properties, "timeChanger", s.timeChanger);
+        writeModule(properties, "ping", s.ping);
+        writeModule(properties, "toggleSneak", s.toggleSneak);
+        writeModule(properties, "toggleSprint", s.toggleSprint);
 
         Path tmp = path.resolveSibling(path.getFileName() + ".tmp");
         try (var writer = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
@@ -159,7 +175,7 @@ final class HudConfig {
         s.accent = color(p, "accent", s.accent);
         s.text = color(p, "text", s.text);
         s.keybind = number(p, "keybind", s.keybind, 0, 1000);
-        s.cornerRadius = number(p, "cornerRadius", s.cornerRadius, 0, 20);
+        s.cornerRadius = number(p, "cornerRadius", s.cornerRadius, 0, 3);
         s.fps = module(p, "fps", s.fps);
         s.cps = module(p, "cps", s.cps);
         s.keystrokes = module(p, "keystrokes", s.keystrokes);
@@ -168,6 +184,10 @@ final class HudConfig {
         s.ip = module(p, "ip", s.ip);
         s.armor = module(p, "armor", s.armor);
         s.fullbright = module(p, "fullbright", s.fullbright);
+        s.timeChanger = module(p, "timeChanger", s.timeChanger);
+        s.ping = module(p, "ping", s.ping);
+        s.toggleSneak = module(p, "toggleSneak", s.toggleSneak);
+        s.toggleSprint = module(p, "toggleSprint", s.toggleSprint);
         return s;
     }
 

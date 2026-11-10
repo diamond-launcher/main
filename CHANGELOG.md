@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.0] - 2026-11-10
+
+### Added
+- Time Changer module: client-side time of day override with slider in module editor. Does not affect server or other players.
+- Ping module: shows current server ping on HUD.
+- Toggle Sneak module: press Shift once to lock sneak on/off.
+- Toggle Sprint module: press sprint key once to lock sprint on/off.
+
+### Fixed
+- HUD module text vertical alignment: truly centered with equal top/bottom padding.
+- Armor HUD: removed duplicate panel background draw call.
+- Corner Radius maximum reduced to 3 to prevent visual distortion.
+
 ## [0.5.4] - 2026-11-09
 
 ### Fixed

@@ -48,9 +48,25 @@ pub struct HudSettings {
     /// Background rendering toggle: makes dark caves and night clearly visible.
     #[serde(default = "default_fullbright_module")]
     pub fullbright: HudModule,
+    /// Client-side time of day override.
+    #[serde(default = "default_off_module")]
+    pub time_changer: HudModule,
+    /// Shows the player's current server ping.
+    #[serde(default = "default_off_module")]
+    pub ping: HudModule,
+    /// Toggle sneak behavior (hold vs toggle).
+    #[serde(default = "default_off_module")]
+    pub toggle_sneak: HudModule,
+    /// Toggle sprint behavior (hold vs toggle).
+    #[serde(default = "default_off_module")]
+    pub toggle_sprint: HudModule,
 }
 
 fn default_fullbright_module() -> HudModule {
+    HudModule { enabled: false, ..HudModule::default() }
+}
+
+fn default_off_module() -> HudModule {
     HudModule { enabled: false, ..HudModule::default() }
 }
 
@@ -63,7 +79,7 @@ impl Default for HudSettings {
             accent: "#6ee7f0".into(),
             text_color: "#e8f0f2".into(),
             keybind: 344,
-            corner_radius: 4,
+            corner_radius: 3,
             fps: HudModule { enabled: true, x: 0.015, y: 0.015 },
             cps: HudModule { enabled: true, x: 0.015, y: 0.075 },
             keystrokes: HudModule { enabled: true, x: 0.015, y: 0.150 },
@@ -72,13 +88,17 @@ impl Default for HudSettings {
             ip: HudModule { enabled: true, x: 0.015, y: 0.300 },
             armor: HudModule { enabled: true, x: 0.850, y: 0.015 },
             fullbright: HudModule { enabled: false, x: 0.850, y: 0.075 },
+            time_changer: HudModule { enabled: false, x: 0.850, y: 0.135 },
+            ping: HudModule { enabled: false, x: 0.850, y: 0.200 },
+            toggle_sneak: HudModule { enabled: false, x: 0.850, y: 0.265 },
+            toggle_sprint: HudModule { enabled: false, x: 0.850, y: 0.330 },
         }
     }
 }
 
 impl HudSettings {
     pub fn active(&self) -> bool {
-        self.enabled && (self.fps.enabled || self.cps.enabled || self.keystrokes.enabled || self.coords.enabled || self.day.enabled || self.ip.enabled || self.armor.enabled || self.fullbright.enabled)
+        self.enabled && (self.fps.enabled || self.cps.enabled || self.keystrokes.enabled || self.coords.enabled || self.day.enabled || self.ip.enabled || self.armor.enabled || self.fullbright.enabled || self.time_changer.enabled || self.ping.enabled || self.toggle_sneak.enabled || self.toggle_sprint.enabled)
     }
 
     pub fn normalized(&mut self) {
@@ -87,8 +107,8 @@ impl HudSettings {
         self.accent = normalize_color(&self.accent, "#6ee7f0");
         self.text_color = normalize_color(&self.text_color, "#e8f0f2");
         self.keybind = self.keybind.clamp(0, 1000);
-        self.corner_radius = self.corner_radius.clamp(0, 20);
-        for module in [&mut self.fps, &mut self.cps, &mut self.keystrokes, &mut self.coords, &mut self.day, &mut self.ip, &mut self.armor, &mut self.fullbright] {
+        self.corner_radius = self.corner_radius.clamp(0, 3);
+        for module in [&mut self.fps, &mut self.cps, &mut self.keystrokes, &mut self.coords, &mut self.day, &mut self.ip, &mut self.armor, &mut self.fullbright, &mut self.time_changer, &mut self.ping, &mut self.toggle_sneak, &mut self.toggle_sprint] {
             module.x = finite(module.x, 0.0).clamp(0.0, 1.0);
             module.y = finite(module.y, 0.0).clamp(0.0, 1.0);
         }

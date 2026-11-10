@@ -1,6 +1,6 @@
 [package]
 name = "diamond-launcher"
-version = "0.5.4"
+version = "0.6.0"
 description = "Minimalist Minecraft launcher with maximum performance mods"
 edition = "2021"
 

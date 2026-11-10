@@ -269,6 +269,10 @@ public final class HudConfigScreen extends Screen {
                 addModuleRow(list, "ip", "IP Info", settings.ip);
                 addModuleRow(list, "armor", "Armor HUD", settings.armor);
                 addModuleRow(list, "fullbright", "Fullbright", settings.fullbright);
+                addModuleRow(list, "timeChanger", "Time Changer", settings.timeChanger);
+                addModuleRow(list, "ping", "Ping", settings.ping);
+                addModuleRow(list, "toggleSneak", "Toggle Sneak", settings.toggleSneak);
+                addModuleRow(list, "toggleSprint", "Toggle Sprint", settings.toggleSprint);
             }
             case APPEARANCE -> {
                 list.add(Row.value("scale", "Scale", fmt("%.2fx", settings.scale),
@@ -287,8 +291,8 @@ public final class HudConfigScreen extends Screen {
                                 settings.text, c -> settings.text = c, 0xFFE8F0F2)));
                 list.add(Row.value("radius", "Corner Radius", settings.cornerRadius + " px",
                         () -> openNumber("Corner Radius", "Round the corners of the HUD panels.",
-                                settings.cornerRadius, 0, 20, 1, "%.0f",
-                                v -> settings.cornerRadius = (int) Math.round(v), 4)));
+                                settings.cornerRadius, 0, 3, 1, "%.0f",
+                                v -> settings.cornerRadius = (int) Math.round(v), 3)));
             }
             case GENERAL -> {
                 list.add(Row.toggle("hud", "HUD Overlay", settings.enabled,
@@ -584,6 +588,10 @@ public final class HudConfigScreen extends Screen {
         settings.ip = new HudConfig.Module(settings.ip.enabled, 0.015, 0.300);
         settings.armor = new HudConfig.Module(settings.armor.enabled, 0.850, 0.015);
         settings.fullbright = new HudConfig.Module(settings.fullbright.enabled, 0.850, 0.075);
+        settings.timeChanger = new HudConfig.Module(settings.timeChanger.enabled, 0.850, 0.135);
+        settings.ping = new HudConfig.Module(settings.ping.enabled, 0.850, 0.200);
+        settings.toggleSneak = new HudConfig.Module(settings.toggleSneak.enabled, 0.850, 0.265);
+        settings.toggleSprint = new HudConfig.Module(settings.toggleSprint.enabled, 0.850, 0.330);
         save();
     }
 
@@ -619,6 +627,10 @@ public final class HudConfigScreen extends Screen {
             case "ip" -> settings.ip;
             case "armor" -> settings.armor;
             case "fullbright" -> settings.fullbright;
+            case "timeChanger" -> settings.timeChanger;
+            case "ping" -> settings.ping;
+            case "toggleSneak" -> settings.toggleSneak;
+            case "toggleSprint" -> settings.toggleSprint;
             default -> settings.fps;
         };
     }

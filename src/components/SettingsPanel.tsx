@@ -23,7 +23,7 @@ const HUD_MODULES = [
   ["ip", "IP Info"],
   ["armor", "Armor HUD"],
 ] as const;
-type HudKey = (typeof HUD_MODULES)[number][0] | "fullbright";
+type HudKey = (typeof HUD_MODULES)[number][0] | "fullbright" | "time_changer" | "ping" | "toggle_sneak" | "toggle_sprint";
 
 const HUD_DEFAULT_POS: Record<HudKey, { x: number; y: number }> = {
   fps: { x: 0.012, y: 0.012 },
@@ -34,6 +34,10 @@ const HUD_DEFAULT_POS: Record<HudKey, { x: number; y: number }> = {
   ip: { x: 0.012, y: 0.3 },
   armor: { x: 0.85, y: 0.012 },
   fullbright: { x: 0.85, y: 0.075 },
+  time_changer: { x: 0.85, y: 0.135 },
+  ping: { x: 0.85, y: 0.2 },
+  toggle_sneak: { x: 0.85, y: 0.265 },
+  toggle_sprint: { x: 0.85, y: 0.33 },
 };
 
 const HUD_DESCRIPTIONS: Record<HudKey, string> = {
@@ -45,6 +49,10 @@ const HUD_DESCRIPTIONS: Record<HudKey, string> = {
   ip: "Connected server address.",
   armor: "Equipped armor with durability.",
   fullbright: "Rendering-level brightness; enable/disable only.",
+  time_changer: "Client-side time of day override. Does not affect the server or other players.",
+  ping: "Shows your current server ping in milliseconds.",
+  toggle_sneak: "Toggle sneak on/off with Shift instead of holding it.",
+  toggle_sprint: "Toggle sprint on/off with the sprint key instead of holding it.",
 };
 
 function Switch({
@@ -158,6 +166,10 @@ export function SettingsPanel({ settings, system, catalog, modsState, busy, canV
       ip: { ...draft.hud.ip, ...HUD_DEFAULT_POS.ip },
       armor: { ...draft.hud.armor, ...HUD_DEFAULT_POS.armor },
       fullbright: { ...draft.hud.fullbright, ...HUD_DEFAULT_POS.fullbright },
+      time_changer: { ...draft.hud.time_changer, ...HUD_DEFAULT_POS.time_changer },
+      ping: { ...draft.hud.ping, ...HUD_DEFAULT_POS.ping },
+      toggle_sneak: { ...draft.hud.toggle_sneak, ...HUD_DEFAULT_POS.toggle_sneak },
+      toggle_sprint: { ...draft.hud.toggle_sprint, ...HUD_DEFAULT_POS.toggle_sprint },
     });
 
   const autoRam = draft.maxRamMb === null;
@@ -437,6 +449,25 @@ export function SettingsPanel({ settings, system, catalog, modsState, busy, canV
                   onChange={(v) => patchModule("fullbright", { enabled: v })}
                 />
               </div>
+
+              {(() => {
+                const extra: HudKey[] = ["time_changer", "ping", "toggle_sneak", "toggle_sprint"];
+                return extra.map((key) => (
+                  <div className="mod-row" key={key}>
+                    <span>
+                      <span className="mod-row__name">
+                        {key === "time_changer" ? "Time Changer" : key === "ping" ? "Ping" : key === "toggle_sneak" ? "Toggle Sneak" : "Toggle Sprint"}
+                      </span>
+                      <span className="mod-row__desc">{HUD_DESCRIPTIONS[key]}</span>
+                    </span>
+                    <Switch
+                      label={`${key} module`}
+                      checked={draft.hud[key].enabled}
+                      onChange={(v) => patchModule(key, { enabled: v })}
+                    />
+                  </div>
+                ));
+              })()}
 
               <div className="hud-settings">
                 <label className="field">

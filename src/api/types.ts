@@ -46,6 +46,10 @@ export interface HudSettings {
   ip: HudModule;
   armor: HudModule;
   fullbright: HudModule;
+  time_changer: HudModule;
+  ping: HudModule;
+  toggle_sneak: HudModule;
+  toggle_sprint: HudModule;
 }
 
 export interface Settings {
