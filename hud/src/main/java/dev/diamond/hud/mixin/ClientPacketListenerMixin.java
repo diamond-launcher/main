@@ -1,5 +1,6 @@
-package dev.diamond.hud;
+package dev.diamond.hud.mixin;
 
+import dev.diamond.hud.ServerTps;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundSetTimePacket;
 import org.spongepowered.asm.mixin.Mixin;

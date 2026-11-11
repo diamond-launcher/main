@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.7.1] - 2026-11-11
+
+### Fixed
+- **Game crashed at startup with the 0.7.0 HUD mod.** The mixin config declared `dev.diamond.hud` as its package, which makes Mixin treat every class in that package as a mixin and refuse to load `DiamondHud` with "is in a defined mixin package ... cannot be referenced directly". The `handleSetTime` mixin now lives in `dev.diamond.hud.mixin`, and `ServerTps` is public so the subpackage can call it. The mod loads normally again.
+- Rebuilt `diamond-hud.jar` and the installer so the fix ships in the embedded mod.
+
+### Verified
+- `hud/build.ps1 -MinecraftVersion 26.2` builds the jar with `dev/diamond/hud/mixin/ClientPacketListenerMixin.class` and the corrected `diamondhud.mixins.json`.
+- Minecraft 26.2 + Fabric starts to the title screen with the HUD mod loaded (see in-game log) instead of crashing during client entrypoints.
+- `npm run typecheck` clean; `cargo test --lib` 36 passed (1 ignored).
+
 ## [0.7.0] - 2026-11-11
 
 ### Added

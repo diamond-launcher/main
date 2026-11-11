@@ -13,7 +13,7 @@ import java.util.Locale;
  * arrived recently: the value is then reported as unknown and the HUD shows
  * {@code --} instead of a made-up number.</p>
  */
-final class ServerTps {
+public final class ServerTps {
     /** The estimate covers at most this much wall time, so drops show up quickly. */
     private static final long WINDOW_NS = 3_000_000_000L;
     /** No time update for this long means the value is stale (paused or disconnected). */
@@ -30,7 +30,7 @@ final class ServerTps {
     }
 
     /** Called from the time packet handler on the client thread. */
-    static synchronized void onTimeUpdate(Object source, long gameTime) {
+    public static synchronized void onTimeUpdate(Object source, long gameTime) {
         if (source != connection) {
             SAMPLES.clear();
             connection = source;
@@ -47,7 +47,7 @@ final class ServerTps {
     }
 
     /** Server ticks per second, or {@code -1} when there is no recent measurement. */
-    static synchronized double current() {
+    public static synchronized double current() {
         if (SAMPLES.size() < 2) {
             return -1.0;
         }
@@ -65,7 +65,7 @@ final class ServerTps {
         return Math.min(20.0, ticks * 1_000_000_000.0 / elapsed);
     }
 
-    static String format(double tps) {
+    public static String format(double tps) {
         return String.format(Locale.ROOT, "%.1f", tps);
     }
 }
