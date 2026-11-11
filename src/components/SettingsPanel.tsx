@@ -464,46 +464,46 @@ export function SettingsPanel({ settings, system, catalog, modsState, busy, canV
                     />
                   </div>
                 ))}
-              </div>
 
-              <div className="mod-row">
-                <span>
-                  <span className="mod-row__name">Fullbright</span>
-                  <span className="mod-row__desc">
-                    Rendering-level brightness (no slider): dark caves and nighttime stay clearly visible.
-                    Restores normal lighting immediately when turned off.
+                <div className="mod-row">
+                  <span>
+                    <span className="mod-row__name">Fullbright</span>
+                    <span className="mod-row__desc">
+                      Rendering-level brightness (no slider): dark caves and nighttime stay clearly visible.
+                      Restores normal lighting immediately when turned off.
+                    </span>
                   </span>
-                </span>
-                <Switch
-                  label="Fullbright module"
-                  checked={draft.hud.fullbright.enabled}
-                  onChange={(v) => patchModule("fullbright", { enabled: v })}
-                />
-              </div>
+                  <Switch
+                    label="Fullbright module"
+                    checked={draft.hud.fullbright.enabled}
+                    onChange={(v) => patchModule("fullbright", { enabled: v })}
+                  />
+                </div>
 
-              <div className="mod-row">
-                <span>
-                  <span className="mod-row__name">Time Changer</span>
-                  <span className="mod-row__desc">{HUD_DESCRIPTIONS.timeChanger}</span>
-                </span>
-                <Switch
-                  label="Time Changer module"
-                  checked={draft.hud.timeChanger.enabled}
-                  disabled={!draft.hud.enabled}
-                  onChange={(v) => patchModule("timeChanger", { enabled: v })}
-                />
-              </div>
+                <div className="mod-row">
+                  <span>
+                    <span className="mod-row__name">Time Changer</span>
+                    <span className="mod-row__desc">{HUD_DESCRIPTIONS.timeChanger}</span>
+                  </span>
+                  <Switch
+                    label="Time Changer module"
+                    checked={draft.hud.timeChanger.enabled}
+                    disabled={!draft.hud.enabled}
+                    onChange={(v) => patchModule("timeChanger", { enabled: v })}
+                  />
+                </div>
 
-              <div className="mod-row">
-                <span>
-                  <span className="mod-row__name">Toggle Sprint</span>
-                  <span className="mod-row__desc">{HUD_DESCRIPTIONS.toggleSprint}</span>
-                </span>
-                <Switch
-                  label="toggleSprint module"
-                  checked={draft.hud.toggleSprint.enabled}
-                  onChange={(v) => patchModule("toggleSprint", { enabled: v })}
-                />
+                <div className="mod-row">
+                  <span>
+                    <span className="mod-row__name">Toggle Sprint</span>
+                    <span className="mod-row__desc">{HUD_DESCRIPTIONS.toggleSprint}</span>
+                  </span>
+                  <Switch
+                    label="toggleSprint module"
+                    checked={draft.hud.toggleSprint.enabled}
+                    onChange={(v) => patchModule("toggleSprint", { enabled: v })}
+                  />
+                </div>
               </div>
 
               <div className="hud-settings">

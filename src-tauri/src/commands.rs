@@ -125,7 +125,7 @@ pub fn get_app_info() -> AppInfo {
     AppInfo {
         version: env!("CARGO_PKG_VERSION"),
         developer: "den3zx",
-        website: "https://github.com/den3zx/diamond-launcher",
+        website: "https://github.com/diamond-launcher/main",
     }
 }
 

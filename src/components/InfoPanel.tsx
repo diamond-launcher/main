@@ -10,7 +10,7 @@ interface Props {
 const FALLBACK: AppInfo = {
   version: "—",
   developer: "den3zx",
-  website: "https://github.com/den3zx/diamond-launcher",
+  website: "https://github.com/diamond-launcher/main",
 };
 
 export function InfoPanel({ onClose }: Props) {
@@ -64,7 +64,7 @@ export function InfoPanel({ onClose }: Props) {
         </div>
 
         <p className="info-card__tagline">
-          A minimalist Minecraft launcher with a dark, cyan-accented interface and a fully customizable in-game HUD.
+          A lightweight Minecraft launcher with Fabric performance mods and an optional in-game HUD.
         </p>
 
         <dl className="info-card__rows">
@@ -77,7 +77,7 @@ export function InfoPanel({ onClose }: Props) {
             <dd>{info.developer}</dd>
           </div>
           <div>
-            <dt>Website</dt>
+            <dt>GitHub</dt>
             <dd>
               <code>{info.website}</code>
               <button className="link" onClick={() => void copyWebsite()}>
@@ -87,12 +87,12 @@ export function InfoPanel({ onClose }: Props) {
           </div>
           <div>
             <dt>Client</dt>
-            <dd>Fabric (performance mods + optional HUD)</dd>
+            <dd>Fabric, with performance mods and an optional HUD.</dd>
           </div>
         </dl>
 
         <p className="info-card__fine">
-          Not affiliated with Mojang Studios or Microsoft. Minecraft is a trademark of Mojang Synergies AB.
+          Diamond Launcher is not affiliated with Mojang or Microsoft. Minecraft is a trademark of Mojang Synergies AB.
         </p>
       </section>
     </div>

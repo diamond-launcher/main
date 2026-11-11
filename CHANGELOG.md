@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.5] - 2026-11-11
+
+### Fixed
+- **HUD module list spacing.** Fullbright, Time Changer and Toggle Sprint sat outside the shared module container, so they were separated by the drawer's 22 px section gap while FPS, CPS, Keys, Coords, Day Counter, IP Info, Armor HUD and Ping were stacked together. They now use the same `.hud-modules` container and `.mod-row` layout as every other module: identical padding, row height, text alignment and switch position, with no extra gap before or after them.
+- Module rows keep their natural height when a description wraps to two lines; the switch stays vertically centred, so nothing is stretched or clipped.
+
+### Changed
+- **Info panel.** The repository link now points to `https://github.com/diamond-launcher/main` (frontend fallback and the Rust `get_app_info` command), the row is labelled GitHub, and the description texts were rewritten in a shorter, plainer tone.
+
+### Verified
+- HUD tab checked in the running app at 900×640 and 900×1500: all eleven module rows share the same left text edge (x=970) and switch column (x=1382); the pitch between single-line rows is 54 px and multi-line rows add only their own text height.
+- `cargo test --lib` 36 passed, `npm run typecheck` clean.
+
 ## [0.6.4] - 2026-11-11
 
 ### Fixed
