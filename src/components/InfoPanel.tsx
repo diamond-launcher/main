@@ -87,7 +87,7 @@ export function InfoPanel({ onClose }: Props) {
           </div>
           <div>
             <dt>Client</dt>
-            <dd>Fabric, with performance mods and an optional HUD.</dd>
+            <dd>Fabric + performance mods + HUD</dd>
           </div>
         </dl>
 

@@ -1,3 +1,18 @@
+@font-face {
+  font-family: "Monocraft";
+  src: url("../assets/fonts/Monocraft-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Monocraft";
+  src: url("../assets/fonts/Monocraft-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --bg: #0b0c0e;
   --surface: #131518;
@@ -19,7 +34,7 @@
   --fast: 140ms;
   --medium: 260ms;
 
-  --font: "Pixelify Sans", "Segoe UI", system-ui, sans-serif;
-  --font-display: "Pixelify Sans", "Segoe UI", system-ui, sans-serif;
+  --font: "Monocraft", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Monocraft", "Segoe UI", system-ui, sans-serif;
   --mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
 }

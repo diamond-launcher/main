@@ -48,6 +48,8 @@ Events: `install-progress` (phase: metadata, java, verify, download, finalize, d
 
 Data lives in `%APPDATA%\Diamond` (`settings.json`, manifest cache) and, by default, `%APPDATA%\Diamond\minecraft` (standard `versions/ libraries/ assets/ runtime/` layout). Both game dir and Java are overridable in Settings.
 
+UI font: [Monocraft](https://github.com/IdreesInc/Monocraft) by Idrees Hassan, licensed under SIL OFL 1.1. The woff2 files and the license live in `src/assets/fonts/` and are declared with `@font-face` in `src/styles/tokens.css`. Monocraft has a taller x-height than a regular UI face, so component font sizes are set one step below the previous values to keep the same visual weight.
+
 Design rules: launch arguments come from version JSON rules (legacy `minecraftArguments` gets only the universal `-Djava.library.path`/`-cp`), with one exception: `--offlineDeveloperMode` is added when the client jar declares it, because 26.2+ uses that flag instead of `--userType` to select the offline user API. Progress is only shown from real byte counts, other phases are indeterminate.
 
 Error codes returned to the UI (`AppError.code`): `network`, `checksum`, `not_installed`, `java_missing`, `java_too_old`, `mods_outdated`, `invalid_*`, `busy`, `launch_failed`, ... The UI auto-repairs on `not_installed`/`java_missing`/`mods_outdated` when pressing Play.

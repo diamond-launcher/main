@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.6] - 2026-11-11
+
+### Changed
+- **UI font is now Monocraft.** The interface uses [Monocraft](https://github.com/IdreesInc/Monocraft) by Idrees Hassan, a pixel font modelled on Minecraft's, licensed under SIL OFL 1.1. The Regular and Bold faces ship as woff2 in `src/assets/fonts/` next to the license text, declared with `@font-face` in `src/styles/tokens.css`. Pixelify Sans and its `@fontsource` dependency were removed.
+- Monocraft has a taller x-height than a regular UI face, so component font sizes are one step smaller than before (body 14 → 13 px, 12 → 11 px, and so on). Spacing, padding, radii and the layout are unchanged; only the text metrics moved.
+- The About panel's Client row now reads "Fabric + performance mods + HUD" so it fits on one line in the wider font.
+- README notes the font and its license.
+
+### Verified
+- Main screen, General, HUD and About checked in the running app at 900×700: no clipped or wrapped rows, the HUD module list keeps its alignment, and the About panel's Client row stays on one line.
+- `npm run typecheck` clean; `cargo test --lib` 36 passed.
+
 ## [0.6.5] - 2026-11-11
 
 ### Fixed
