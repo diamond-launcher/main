@@ -85,6 +85,12 @@ pub fn write_config(paths: &GamePaths, hud: &HudSettings) -> Result<PathBuf> {
                     merged.ping.enabled = ingame_hud.ping.enabled;
                     merged.ping.x = ingame_hud.ping.x;
                     merged.ping.y = ingame_hud.ping.y;
+                    merged.tps.enabled = ingame_hud.tps.enabled;
+                    merged.tps.x = ingame_hud.tps.x;
+                    merged.tps.y = ingame_hud.tps.y;
+                    merged.direction.enabled = ingame_hud.direction.enabled;
+                    merged.direction.x = ingame_hud.direction.x;
+                    merged.direction.y = ingame_hud.direction.y;
                     merged.toggle_sprint.enabled = ingame_hud.toggle_sprint.enabled;
                     merged.toggle_sprint.x = ingame_hud.toggle_sprint.x;
                     merged.toggle_sprint.y = ingame_hud.toggle_sprint.y;
@@ -126,6 +132,8 @@ fn properties(hud: &HudSettings) -> String {
     module(&mut out, "timeChanger", &hud.time_changer);
     out.push_str(&format!("timeChangerTime={}\n", hud.time_changer_time));
     module(&mut out, "ping", &hud.ping);
+    module(&mut out, "tps", &hud.tps);
+    module(&mut out, "direction", &hud.direction);
     module(&mut out, "toggleSprint", &hud.toggle_sprint);
     out
 }
@@ -221,6 +229,8 @@ fn parse_ingame(text: &str) -> Option<HudSettings> {
         time_changer: module("timeChanger", default.time_changer.clone()),
         time_changer_time: integer("timeChangerTime", default.time_changer_time),
         ping: module("ping", default.ping.clone()),
+        tps: module("tps", default.tps.clone()),
+        direction: module("direction", default.direction.clone()),
         toggle_sprint: module("toggleSprint", default.toggle_sprint.clone()),
     })
 }
@@ -257,6 +267,9 @@ mod tests {
         assert!(text.contains("keystrokes.x=0.5000"));
         assert!(text.contains("keystrokes.y=0.7500"));
         assert!(text.contains("fps.enabled=true"));
+        assert!(text.contains("tps.enabled=false"));
+        assert!(text.contains("tps.x=0.8500"));
+        assert!(text.contains("direction.y=0.3950"));
     }
 
     #[test]

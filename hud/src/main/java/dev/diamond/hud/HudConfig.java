@@ -51,6 +51,10 @@ final class HudConfig {
         int timeChangerTime;
         /// Shows the player's current server ping.
         Module ping;
+        /// Shows the measured server tick rate.
+        Module tps;
+        /// Shows the direction the player is facing.
+        Module direction;
         /// Toggle sprint behavior (hold vs toggle).
         Module toggleSprint;
 
@@ -75,6 +79,8 @@ final class HudConfig {
             s.timeChanger = new Module(false, 0.850, 0.135);
             s.timeChangerTime = 6000; // noon
             s.ping = new Module(false, 0.850, 0.200);
+            s.tps = new Module(false, 0.850, 0.330);
+            s.direction = new Module(false, 0.850, 0.395);
             s.toggleSprint = new Module(false, 0.850, 0.265);
             return s;
         }
@@ -139,6 +145,8 @@ final class HudConfig {
         writeModule(properties, "timeChanger", s.timeChanger);
         properties.setProperty("timeChangerTime", Integer.toString(s.timeChangerTime));
         writeModule(properties, "ping", s.ping);
+        writeModule(properties, "tps", s.tps);
+        writeModule(properties, "direction", s.direction);
         writeModule(properties, "toggleSprint", s.toggleSprint);
 
         Path tmp = path.resolveSibling(path.getFileName() + ".tmp");
@@ -187,6 +195,8 @@ final class HudConfig {
         s.timeChanger = module(p, "timeChanger", s.timeChanger);
         s.timeChangerTime = number(p, "timeChangerTime", s.timeChangerTime, 0, 23999);
         s.ping = module(p, "ping", s.ping);
+        s.tps = module(p, "tps", s.tps);
+        s.direction = module(p, "direction", s.direction);
         s.toggleSprint = module(p, "toggleSprint", s.toggleSprint);
         return s;
     }

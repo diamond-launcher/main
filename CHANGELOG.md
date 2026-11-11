@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.7.0] - 2026-11-11
+
+### Added
+- **TPS module.** Measures the real server tick rate from `ClientboundSetTimePacket`: the server advances `gameTime` by exactly one per tick and sends it every 20 ticks, so ticks divided by wall-clock time gives the true TPS. A small Mixin (`ClientPacketListener.handleSetTime`, injected at `TAIL`) records the samples, the value is computed over a 3-second window and clamped to 20.0. When no recent update exists (paused, disconnected, or a server that does not send time packets) the module shows `--` instead of inventing a number. It reuses the Ping panel's label/value layout and colors, and can be toggled, moved and previewed from the HUD editor.
+- **Direction module.** Shows the compass direction the player is facing: North, South, East, West plus the NE/NW/SE/SW diagonals, updated every frame from the player's yaw. Cardinals use the full name, diagonals the short form. Same Diamond panel style and fully editable in the layout editor.
+- Both modules are off by default, appear in the in-game Modules list and the launcher's HUD tab, keep their state and position in `diamond-hud.properties` and `settings.json`, and are included in Reset Positions.
+- HUD mod bumped to 1.3.0.
+
+### Changed
+- **Main menu spacing.** Title-screen buttons now start at vanilla's `height / 4 + 48` instead of being re-centred with an extra 20 px offset, so the gap under the logo is noticeably smaller. The group is still clamped above the bottom edge, and the 200×20 buttons, 8 px gap and horizontal centring are untouched, so it behaves on every resolution.
+- `hud/build.ps1` passes javac through an argument file, because the Fabric classpath exceeds the Windows command-line limit.
+
+### Verified
+- `npm run typecheck` clean; `cargo test --lib` ran 37 tests (36 passed, 1 ignored network/game test).
+- `hud/build.ps1 -MinecraftVersion 26.2` rebuilt `diamond-hud.jar` with the new classes and Mixin config; `npm run tauri build` produced the NSIS installer.
+- Release executable starts and stays alive; installer uploaded and downloaded (HTTP 200).
+
 ## [0.6.6] - 2026-11-11
 
 ### Changed

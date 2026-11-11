@@ -141,12 +141,21 @@ try {
         ForEach-Object { $_.FullName }
 
     Write-Host "Compiling Diamond HUD against $MinecraftVersion..."
-    & $javac --release 25 -encoding UTF-8 -classpath ($classpath -join ";") -d $out $sources
+    # Windows caps a command line at ~32k characters and the Fabric library
+    # classpath is far larger, so pass everything through a javac argument file.
+    $argsFile = Join-Path $temp "javac.args"
+    $argLines = @("--release 25", "-encoding UTF-8")
+    $argLines += '-classpath "' + (($classpath | ForEach-Object { $_ -replace '\\', '/' }) -join ';') + '"'
+    $argLines += '-d "' + ($out -replace '\\', '/') + '"'
+    $argLines += $sources | ForEach-Object { '"' + ($_ -replace '\\', '/') + '"' }
+    Set-Content -Path $argsFile -Value $argLines -Encoding ascii
+    & $javac "@$argsFile"
     if ($LASTEXITCODE -ne 0) {
         throw "javac failed with exit code $LASTEXITCODE."
     }
 
     Copy-Item (Join-Path $PSScriptRoot "src\main\resources\fabric.mod.json") $out
+    Copy-Item (Join-Path $PSScriptRoot "src\main\resources\diamondhud.mixins.json") $out
 
     $targetDir = Join-Path $PSScriptRoot "..\src-tauri\resources"
     New-Item -ItemType Directory $targetDir -Force | Out-Null

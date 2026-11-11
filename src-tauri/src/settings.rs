@@ -57,6 +57,12 @@ pub struct HudSettings {
     /// Shows the player's current server ping.
     #[serde(default = "default_off_module")]
     pub ping: HudModule,
+    /// Shows the measured server tick rate.
+    #[serde(default = "default_off_module")]
+    pub tps: HudModule,
+    /// Shows the direction the player is facing.
+    #[serde(default = "default_off_module")]
+    pub direction: HudModule,
     /// Toggle sprint behavior (hold vs toggle).
     #[serde(default = "default_off_module")]
     pub toggle_sprint: HudModule,
@@ -95,6 +101,8 @@ impl Default for HudSettings {
             time_changer: HudModule { enabled: false, x: 0.850, y: 0.135 },
             time_changer_time: 6000,
             ping: HudModule { enabled: false, x: 0.850, y: 0.200 },
+            tps: HudModule { enabled: false, x: 0.850, y: 0.330 },
+            direction: HudModule { enabled: false, x: 0.850, y: 0.395 },
             toggle_sprint: HudModule { enabled: false, x: 0.850, y: 0.265 },
         }
     }
@@ -102,7 +110,7 @@ impl Default for HudSettings {
 
 impl HudSettings {
     pub fn active(&self) -> bool {
-        self.enabled && (self.fps.enabled || self.cps.enabled || self.keystrokes.enabled || self.coords.enabled || self.day.enabled || self.ip.enabled || self.armor.enabled || self.fullbright.enabled || self.time_changer.enabled || self.ping.enabled || self.toggle_sprint.enabled)
+        self.enabled && (self.fps.enabled || self.cps.enabled || self.keystrokes.enabled || self.coords.enabled || self.day.enabled || self.ip.enabled || self.armor.enabled || self.fullbright.enabled || self.time_changer.enabled || self.ping.enabled || self.tps.enabled || self.direction.enabled || self.toggle_sprint.enabled)
     }
 
     pub fn normalized(&mut self) {
@@ -113,7 +121,7 @@ impl HudSettings {
         self.keybind = self.keybind.clamp(0, 1000);
         self.corner_radius = self.corner_radius.clamp(0, 3);
         self.time_changer_time = self.time_changer_time.clamp(0, 23999);
-        for module in [&mut self.fps, &mut self.cps, &mut self.keystrokes, &mut self.coords, &mut self.day, &mut self.ip, &mut self.armor, &mut self.fullbright, &mut self.time_changer, &mut self.ping, &mut self.toggle_sprint] {
+        for module in [&mut self.fps, &mut self.cps, &mut self.keystrokes, &mut self.coords, &mut self.day, &mut self.ip, &mut self.armor, &mut self.fullbright, &mut self.time_changer, &mut self.ping, &mut self.tps, &mut self.direction, &mut self.toggle_sprint] {
             module.x = finite(module.x, 0.0).clamp(0.0, 1.0);
             module.y = finite(module.y, 0.0).clamp(0.0, 1.0);
         }

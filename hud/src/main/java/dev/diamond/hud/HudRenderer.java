@@ -29,10 +29,12 @@ public final class HudRenderer implements HudElement {
     public static final String IP = "ip";
     public static final String ARMOR = "armor";
     public static final String PING = "ping";
+    public static final String TPS = "tps";
+    public static final String DIRECTION = "direction";
     /** Sprint lock indicator; also drives the toggle-sprint behavior. */
     public static final String TOGGLE_SPRINT = "toggleSprint";
     // FULLBRIGHT is not a HUD module - it's a background gamma toggle
-    public static final String[] TYPES = {FPS, CPS, KEYSTROKES, COORDS, DAY, IP, ARMOR, PING, TOGGLE_SPRINT};
+    public static final String[] TYPES = {FPS, CPS, KEYSTROKES, COORDS, DAY, IP, ARMOR, PING, TPS, DIRECTION, TOGGLE_SPRINT};
 
     /** Exact status text shown while the sprint toggle is locked on. */
     private static final String SPRINT_TOGGLED = "[Sprint (Toggled)]";
@@ -82,6 +84,9 @@ public final class HudRenderer implements HudElement {
         drawModuleAt(graphics, IP, settings, settings.ip, mc, (float) (settings.ip.x * w), (float) (settings.ip.y * h), 1.0f);
         drawModuleAt(graphics, ARMOR, settings, settings.armor, mc, (float) (settings.armor.x * w), (float) (settings.armor.y * h), 1.0f);
         drawModuleAt(graphics, PING, settings, settings.ping, mc, (float) (settings.ping.x * w), (float) (settings.ping.y * h), 1.0f);
+        drawModuleAt(graphics, TPS, settings, settings.tps, mc, (float) (settings.tps.x * w), (float) (settings.tps.y * h), 1.0f);
+        drawModuleAt(graphics, DIRECTION, settings, settings.direction, mc,
+                (float) (settings.direction.x * w), (float) (settings.direction.y * h), 1.0f);
         drawModuleAt(graphics, TOGGLE_SPRINT, settings, settings.toggleSprint, mc,
                 (float) (settings.toggleSprint.x * w), (float) (settings.toggleSprint.y * h), 1.0f);
     }
@@ -128,6 +133,8 @@ public final class HudRenderer implements HudElement {
             case DAY -> dayContent(g, c, mc);
             case IP -> ipContent(g, c, mc);
             case PING -> pingContent(g, c, mc);
+            case TPS -> tpsContent(g, c, mc);
+            case DIRECTION -> directionContent(g, c, mc);
             case ARMOR -> armorContent(g, c, mc);
             case TOGGLE_SPRINT -> toggleSprintContent(g, c, mc);
             default -> { }
@@ -174,6 +181,14 @@ public final class HudRenderer implements HudElement {
             }
             case PING -> {
                 width = textWidth(font, "PING", pingValue(mc));
+                height = textHeight(font, 1);
+            }
+            case TPS -> {
+                width = textWidth(font, "TPS", tpsValue(mc));
+                height = textHeight(font, 1);
+            }
+            case DIRECTION -> {
+                width = textWidth(font, "DIR", directionValue(mc));
                 height = textHeight(font, 1);
             }
             case TOGGLE_SPRINT -> {
@@ -278,6 +293,32 @@ public final class HudRenderer implements HudElement {
         int textY = PAD;
         g.text(font, "PING", PAD, textY, c.accent, false);
         g.text(font, value, PAD + font.width("PING") + 5, textY, c.text, false);
+    }
+
+    /** TPS module content: the measured server tick rate, or "--" when unknown. */
+    private void tpsContent(GuiGraphicsExtractor g, HudConfig.Settings c, Minecraft mc) {
+        Font font = font(mc);
+        String value = tpsValue(mc);
+        int width = textWidth(font, "TPS", value);
+        int height = textHeight(font, 1);
+
+        panel(g, width, height, c);
+        int textY = PAD;
+        g.text(font, "TPS", PAD, textY, c.accent, false);
+        g.text(font, value, PAD + font.width("TPS") + 5, textY, c.text, false);
+    }
+
+    /** Direction module content: the compass direction the player is facing. */
+    private void directionContent(GuiGraphicsExtractor g, HudConfig.Settings c, Minecraft mc) {
+        Font font = font(mc);
+        String value = directionValue(mc);
+        int width = textWidth(font, "DIR", value);
+        int height = textHeight(font, 1);
+
+        panel(g, width, height, c);
+        int textY = PAD;
+        g.text(font, "DIR", PAD, textY, c.accent, false);
+        g.text(font, value, PAD + font.width("DIR") + 5, textY, c.text, false);
     }
 
     /**
@@ -489,6 +530,40 @@ public final class HudRenderer implements HudElement {
             }
         }
         return "-- ms";
+    }
+
+    /**
+     * Measured server tick rate, or "--" when the server has not sent a recent
+     * time update (so no value is ever invented).
+     */
+    private static String tpsValue(Minecraft mc) {
+        if (mc == null) {
+            return "20.0"; // layout preview
+        }
+        double tps = ServerTps.current();
+        return tps > 0.0 ? ServerTps.format(tps) : "--";
+    }
+
+    /** Compass direction the player is facing, with diagonals, or "--" when not in game. */
+    private static String directionValue(Minecraft mc) {
+        if (mc == null) {
+            return "NE"; // layout preview
+        }
+        if (mc.player == null) {
+            return "--";
+        }
+        float yaw = mc.player.getYRot();
+        int index = Math.floorMod(Math.round(yaw / 45.0f), 8);
+        return switch (index) {
+            case 0 -> "South";
+            case 1 -> "SW";
+            case 2 -> "West";
+            case 3 -> "NW";
+            case 4 -> "North";
+            case 5 -> "NE";
+            case 6 -> "East";
+            default -> "SE";
+        };
     }
 
     private int currentClicks(boolean left) {

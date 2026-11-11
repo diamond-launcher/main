@@ -190,7 +190,9 @@ public final class ClientTheme {
         int btnHeight = 20;
         int gap = 8;
         int totalHeight = keep.size() * btnHeight + (keep.size() - 1) * gap;
-        int startY = (screen.height - totalHeight) / 2 + 20;
+        // Keep the group closer to the logo (which occupies roughly y=30..74) while
+        // still centering it on tall screens and never running off the bottom edge.
+        int startY = Math.max(90, Math.min(screen.height / 4 + 48, screen.height - 12 - totalHeight));
         int centerX = screen.width / 2 - btnWidth / 2;
 
         for (int i = 0; i < keep.size(); i++) {

@@ -23,6 +23,8 @@ const HUD_MODULES = [
   ["ip", "IP Info"],
   ["armor", "Armor HUD"],
   ["ping", "Ping"],
+  ["tps", "TPS"],
+  ["direction", "Direction"],
 ] as const;
 type HudKey = (typeof HUD_MODULES)[number][0] | "fullbright" | "timeChanger" | "toggleSprint";
 
@@ -37,6 +39,8 @@ const HUD_DEFAULT_POS: Record<HudKey, { x: number; y: number }> = {
   fullbright: { x: 0.85, y: 0.075 },
   timeChanger: { x: 0.85, y: 0.135 },
   ping: { x: 0.85, y: 0.2 },
+  tps: { x: 0.85, y: 0.33 },
+  direction: { x: 0.85, y: 0.395 },
   toggleSprint: { x: 0.85, y: 0.265 },
 };
 
@@ -51,6 +55,8 @@ const HUD_DESCRIPTIONS: Record<HudKey, string> = {
   fullbright: "Rendering-level brightness; enable/disable only.",
   timeChanger: "Client-side time of day override. Set the time from the Modules tab in-game; moving the slider turns it on.",
   ping: "Shows your current server ping in milliseconds.",
+  tps: "Measured server tick rate. Shows -- when the server sends no time updates.",
+  direction: "Compass direction you are facing, including diagonals.",
   toggleSprint: "Sprint key locks sprint on/off. While locked, the HUD shows [Sprint (Toggled)].",
 };
 
@@ -197,6 +203,8 @@ export function SettingsPanel({ settings, system, catalog, modsState, busy, canV
       fullbright: { ...draft.hud.fullbright, ...HUD_DEFAULT_POS.fullbright },
       timeChanger: { ...draft.hud.timeChanger, ...HUD_DEFAULT_POS.timeChanger },
       ping: { ...draft.hud.ping, ...HUD_DEFAULT_POS.ping },
+      tps: { ...draft.hud.tps, ...HUD_DEFAULT_POS.tps },
+      direction: { ...draft.hud.direction, ...HUD_DEFAULT_POS.direction },
       toggleSprint: { ...draft.hud.toggleSprint, ...HUD_DEFAULT_POS.toggleSprint },
     });
 

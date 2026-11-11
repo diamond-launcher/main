@@ -274,6 +274,8 @@ public final class HudConfigScreen extends Screen {
                 addModuleRow(list, "fullbright", "Fullbright", settings.fullbright);
                 addModuleRow(list, "timeChanger", "Time Changer", settings.timeChanger, this::openTimeChanger);
                 addModuleRow(list, "ping", "Ping", settings.ping);
+                addModuleRow(list, "tps", "TPS", settings.tps);
+                addModuleRow(list, "direction", "Direction", settings.direction);
                 addModuleRow(list, "toggleSprint", "Toggle Sprint", settings.toggleSprint);
             }
             case APPEARANCE -> {
@@ -586,18 +588,45 @@ public final class HudConfigScreen extends Screen {
     }
 
     private void resetPositions() {
-        settings.fps = new HudConfig.Module(settings.fps.enabled, 0.015, 0.015);
-        settings.cps = new HudConfig.Module(settings.cps.enabled, 0.015, 0.075);
-        settings.keystrokes = new HudConfig.Module(settings.keystrokes.enabled, 0.015, 0.150);
-        settings.coords = new HudConfig.Module(settings.coords.enabled, 0.015, 0.850);
-        settings.day = new HudConfig.Module(settings.day.enabled, 0.015, 0.225);
-        settings.ip = new HudConfig.Module(settings.ip.enabled, 0.015, 0.300);
-        settings.armor = new HudConfig.Module(settings.armor.enabled, 0.850, 0.015);
-        settings.fullbright = new HudConfig.Module(settings.fullbright.enabled, 0.850, 0.075);
-        settings.timeChanger = new HudConfig.Module(settings.timeChanger.enabled, 0.850, 0.135);
-        settings.ping = new HudConfig.Module(settings.ping.enabled, 0.850, 0.200);
-        settings.toggleSprint = new HudConfig.Module(settings.toggleSprint.enabled, 0.850, 0.265);
+        settings.fps = at("fps", settings.fps);
+        settings.cps = at("cps", settings.cps);
+        settings.keystrokes = at("keystrokes", settings.keystrokes);
+        settings.coords = at("coords", settings.coords);
+        settings.day = at("day", settings.day);
+        settings.ip = at("ip", settings.ip);
+        settings.armor = at("armor", settings.armor);
+        settings.fullbright = at("fullbright", settings.fullbright);
+        settings.timeChanger = at("timeChanger", settings.timeChanger);
+        settings.ping = at("ping", settings.ping);
+        settings.tps = at("tps", settings.tps);
+        settings.direction = at("direction", settings.direction);
+        settings.toggleSprint = at("toggleSprint", settings.toggleSprint);
         save();
+    }
+
+    private static HudConfig.Module at(String key, HudConfig.Module module) {
+        double[] pos = defaultPosition(key);
+        return new HudConfig.Module(module.enabled, pos[0], pos[1]);
+    }
+
+    /** Default top-left position for a module, shared by Reset Positions and the module editor. */
+    private static double[] defaultPosition(String key) {
+        return switch (key) {
+            case "fps" -> new double[]{0.015, 0.015};
+            case "cps" -> new double[]{0.015, 0.075};
+            case "keystrokes" -> new double[]{0.015, 0.150};
+            case "coords" -> new double[]{0.015, 0.850};
+            case "day" -> new double[]{0.015, 0.225};
+            case "ip" -> new double[]{0.015, 0.300};
+            case "armor" -> new double[]{0.850, 0.015};
+            case "fullbright" -> new double[]{0.850, 0.075};
+            case "timeChanger" -> new double[]{0.850, 0.135};
+            case "ping" -> new double[]{0.850, 0.200};
+            case "toggleSprint" -> new double[]{0.850, 0.265};
+            case "tps" -> new double[]{0.850, 0.330};
+            case "direction" -> new double[]{0.850, 0.395};
+            default -> new double[]{0.015, 0.015};
+        };
     }
 
     private void openNumber(String title, String hint, double current, double min, double max,
@@ -653,6 +682,8 @@ public final class HudConfigScreen extends Screen {
             case "armor" -> settings.armor;
             case "fullbright" -> settings.fullbright;
             case "ping" -> settings.ping;
+            case "tps" -> settings.tps;
+            case "direction" -> settings.direction;
             case "toggleSprint" -> settings.toggleSprint;
             default -> settings.fps;
         };
@@ -1344,16 +1375,9 @@ public final class HudConfigScreen extends Screen {
         }
 
         private void resetModule() {
-            double x = 0.015;
-            double y = switch (key) {
-                case "cps" -> 0.075;
-                case "keystrokes" -> 0.150;
-                case "coords" -> 0.850;
-                case "day" -> 0.225;
-                case "ip" -> 0.300;
-                case "armor" -> 0.015;
-                default -> 0.015;
-            };
+            double[] pos = defaultPosition(key);
+            double x = pos[0];
+            double y = pos[1];
             module.x = x;
             module.y = y;
             save();

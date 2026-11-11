@@ -54,6 +54,8 @@ export interface HudSettings {
   /** Time of day used by the Time Changer module (0..23999 overworld clock ticks). */
   timeChangerTime: number;
   ping: HudModule;
+  tps: HudModule;
+  direction: HudModule;
   toggleSprint: HudModule;
 }
 
